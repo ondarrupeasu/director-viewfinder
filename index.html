@@ -5,12 +5,12 @@
 <style>
   :root {
     --bg: #000;
-    --panel: rgba(18, 18, 20, 0.92);
+    --panel: rgba(18, 18, 20, 0.94);
     --line: rgba(255, 255, 255, 0.14);
     --txt: #f2f2f2;
     --txt-dim: #9a9a9e;
     --accent: #ff5a52;
-    --mask: rgba(0, 0, 0, 0.82);
+    --mask: rgba(0, 0, 0, 0.5); /* letterbox más suave */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -25,12 +25,7 @@
   }
 
   /* ---- Escena de cámara ---- */
-  #stage {
-    position: fixed;
-    inset: 0;
-    background: #000;
-    overflow: hidden;
-  }
+  #stage { position: fixed; inset: 0; background: #000; overflow: hidden; }
   #cam {
     position: absolute;
     inset: 0;
@@ -38,10 +33,11 @@
     height: 100%;
     object-fit: cover;
     transform-origin: center center;
-    transition: transform 0.15s ease-out;
+    transition: transform 0.15s ease-out, opacity 0.3s ease;
     background: #000;
+    opacity: 0;                 /* oculta hasta "Ver encuadre" */
   }
-  /* Máscara de ratio: el "hueco" queda claro, el resto oscurecido por el box-shadow gigante */
+  #cam.live { opacity: 1; }
   #mask {
     position: absolute;
     top: 50%;
@@ -51,12 +47,49 @@
     outline: 1px solid rgba(255, 255, 255, 0.35);
     pointer-events: none;
     transition: width 0.15s, height 0.15s;
+    opacity: 0;
+  }
+  #cam.live ~ #mask { opacity: 1; }
+
+  /* ---- Selector de ratio siempre visible ---- */
+  #topbar {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0) + 10px);
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    z-index: 20;
+    overflow-x: auto;
+    scrollbar-width: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #topbar::-webkit-scrollbar { display: none; }
+  #topbar.show { opacity: 1; }
+  .rchip {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(20, 20, 22, 0.6);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .rchip.active {
+    border-color: var(--accent);
+    background: rgba(255, 90, 82, 0.85);
+    color: #fff;
   }
 
-  /* ---- Aviso de recorte imposible ---- */
+  /* ---- Aviso ---- */
   #warn {
     position: fixed;
-    top: calc(env(safe-area-inset-top, 0) + 12px);
+    top: calc(env(safe-area-inset-top, 0) + 54px);
     left: 50%;
     transform: translateX(-50%);
     max-width: 88vw;
@@ -83,7 +116,10 @@
     gap: 10px;
     align-items: center;
     z-index: 20;
+    opacity: 0;
+    transition: opacity 0.3s;
   }
+  #hud.show { opacity: 1; }
   .pill {
     display: flex;
     align-items: center;
@@ -117,7 +153,7 @@
     position: fixed;
     inset: 0;
     z-index: 40;
-    background: rgba(0, 0, 0, 0.55);
+    background: #000;               /* opaco: no se ve cámara detrás al arrancar */
     display: none;
     align-items: flex-end;
     justify-content: center;
@@ -126,25 +162,21 @@
   .sheet {
     width: 100%;
     max-width: 520px;
-    max-height: 88vh;
+    max-height: 100vh;
     overflow-y: auto;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 22px 22px 0 0;
-    padding: 20px 20px calc(env(safe-area-inset-bottom, 0) + 24px);
+    padding: calc(env(safe-area-inset-top, 0) + 22px) 20px calc(env(safe-area-inset-bottom, 0) + 24px);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
   @media (min-width: 560px) {
     #panel { align-items: center; }
-    .sheet { border-radius: 22px; }
+    .sheet { border-radius: 22px; max-height: 92vh; }
   }
-  .sheet h1 {
-    font-size: 17px;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }
-  .sheet .sub { color: var(--txt-dim); font-size: 12px; margin-bottom: 18px; }
+  .sheet h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+  .sheet .sub { color: var(--txt-dim); font-size: 12px; margin-bottom: 20px; }
 
   .group { margin-bottom: 18px; }
   .group > label {
@@ -167,72 +199,35 @@
     -webkit-appearance: none;
   }
 
-  /* Chips de ratio */
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip {
-    padding: 9px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    font-variant-numeric: tabular-nums;
-  }
-  .chip.active {
-    border-color: var(--accent);
-    background: rgba(255, 90, 82, 0.16);
-    color: #fff;
-  }
-
-  /* Tabla FOV */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-variant-numeric: tabular-nums;
-    font-size: 13px;
-  }
-  th, td {
-    text-align: left;
-    padding: 8px 6px;
-    border-bottom: 1px solid var(--line);
-  }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--txt-dim); font-weight: 600; font-size: 11px; text-transform: uppercase; }
   tr.cam { cursor: pointer; }
+  tr.cam.disabled { opacity: 0.38; cursor: default; }
   tr.cam.active td { color: #fff; }
   tr.cam.active td:first-child::before {
-    content: "●";
-    color: var(--accent);
-    margin-right: 6px;
-    font-size: 10px;
+    content: "●"; color: var(--accent); margin-right: 6px; font-size: 10px;
+  }
+  td .tag {
+    font-size: 10px; color: var(--txt-dim); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-left: 6px;
   }
 
   .done {
     width: 100%;
     margin-top: 6px;
-    padding: 14px;
+    padding: 15px;
     background: var(--accent);
     color: #fff;
     border: none;
     font-weight: 700;
+    font-size: 15px;
   }
-  .note {
-    font-size: 12px;
-    color: var(--txt-dim);
-    margin-top: 10px;
-    line-height: 1.5;
-  }
-  #err {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    text-align: center;
-    color: var(--txt-dim);
-    z-index: 50;
-    background: #000;
-  }
-  #err.show { display: flex; }
+  .done:disabled { opacity: 0.5; }
+  .note { font-size: 12px; color: var(--txt-dim); margin-top: 10px; line-height: 1.5; }
+  .note b { color: var(--txt); font-weight: 600; }
+  #camStatus { font-size: 12px; margin-top: 10px; }
+  #camStatus.err { color: var(--accent); }
 </style>
 
 <div id="stage">
@@ -240,37 +235,33 @@
   <div id="mask"></div>
 </div>
 
+<div id="topbar"></div>
 <div id="warn"></div>
 
 <div id="hud">
-  <div class="pill" id="readout">
-    <span id="ro-target">—</span> · <b id="ro-fov">—°</b>
-  </div>
+  <div class="pill" id="readout"><span id="ro-target">—</span> · <b id="ro-fov">—°</b></div>
   <button id="open">⚙︎ Ajustes</button>
 </div>
 
-<div id="panel">
+<div id="panel" class="show">
   <div class="sheet">
-    <h1>Configuración del visor</h1>
-    <div class="sub">El móvil es el proxy. Elige con qué captura y qué cámara/óptica quieres simular.</div>
-
-    <div class="group">
-      <label>Máscara de ratio</label>
-      <div class="chips" id="ratios"></div>
-    </div>
+    <h1>Configurar el visor</h1>
+    <div class="sub">El móvil es el proxy. Elige con qué lente captura y qué cámara/óptica de cine quieres simular.</div>
 
     <div class="group">
       <label>Tu móvil</label>
       <select id="phone"></select>
+      <div class="note">La web no puede detectar el modelo, elígelo tú. Los ángulos son aproximados; en F3 habrá calibración fina.</div>
     </div>
 
     <div class="group">
-      <label>Cámara del móvil (FOV de partida)</label>
+      <label>Lente del móvil (captura)</label>
       <table>
-        <thead><tr><th>Cámara</th><th>Focal eq.</th><th>FOV horiz.</th></tr></thead>
+        <thead><tr><th>Lente</th><th>Focal eq.</th><th>FOV horiz.</th></tr></thead>
         <tbody id="camrows"></tbody>
       </table>
-      <div class="note">Consejo: la <b>ultra gran angular</b> deja más margen para recortar hacia focales cerradas. El acceso a una lente concreta en iOS por web no está garantizado.</div>
+      <div id="camStatus">Solicitando acceso a la cámara…</div>
+      <div class="note">Solo se pueden elegir las lentes que tu móvil expone de verdad. La <b>ultra gran angular</b> deja más margen para simular focales cerradas.</div>
     </div>
 
     <div class="group">
@@ -281,38 +272,41 @@
     <div class="group">
       <label>Focal objetivo (mm)</label>
       <input id="focal" type="number" min="4" max="1000" step="1" value="35" inputmode="numeric">
+      <div class="note">Solo cuentan focal + formato de sensor: dos objetivos de la misma focal dan el mismo encuadre (la marca cambia el carácter, no el ángulo).</div>
     </div>
 
     <button class="done" id="close">Ver encuadre</button>
   </div>
 </div>
 
-<div id="err"></div>
-
 <script>
 /* ============================================================
-   Datos F1 (MVP). FOV horizontal en grados por cámara de móvil.
-   Ampliar con más modelos en F2.
+   Datos. FOV se calcula desde la focal equivalente (35mm, 36mm de ancho):
+   hfov = 2·atan(36 / (2·eq)). Ampliar catálogo en F2.
    ============================================================ */
 const PHONES = {
-  "iphone-12-pro": {
-    name: "iPhone 12 Pro",
-    cams: [
-      { id: "uw",   label: "Ultra gran angular", eq: "13 mm", hfov: 106 },
-      { id: "wide", label: "Gran angular",       eq: "26 mm", hfov: 70  },
-      { id: "tele", label: "Teleobjetivo",       eq: "52 mm", hfov: 37  },
-    ],
-  },
+  "iphone-12-pro":        { name: "iPhone 12 Pro",            cams: [c("uw",13), c("wide",26), c("tele",52)] },
+  "iphone-12-pro-max":    { name: "iPhone 12 Pro Max",        cams: [c("uw",13), c("wide",26), c("tele",65)] },
+  "iphone-13-14-pro":     { name: "iPhone 13 / 14 Pro",       cams: [c("uw",13), c("wide",26), c("tele",77)] },
+  "iphone-15-pro":        { name: "iPhone 15 Pro",            cams: [c("uw",13), c("wide",24), c("tele",77)] },
+  "iphone-15-16-promax":  { name: "iPhone 15/16 Pro Max",     cams: [c("uw",13), c("wide",24), c("tele",120)] },
+  "iphone-16-pro":        { name: "iPhone 16 Pro",            cams: [c("uw",13), c("wide",24), c("tele",120)] },
+  "generic-3":            { name: "Genérico (UW + Wide + Tele)", cams: [c("uw",13), c("wide",26), c("tele",50)] },
+  "generic-2":            { name: "Genérico (Wide + Tele)",   cams: [c("wide",26), c("tele",50)] },
 };
+function c(id, eq) {
+  const label = { uw: "Ultra gran angular", wide: "Gran angular", tele: "Teleobjetivo" }[id];
+  return { id, label, eq };
+}
 
-/* Cámaras de cine: ancho de sensor en mm (para calcular FOV objetivo). */
+/* Cámaras de cine: ancho de sensor (mm) → FOV objetivo. */
 const CINE = [
-  { id: "alexa35",   name: "ARRI Alexa 35 (S35)",     sw: 27.99 },
-  { id: "alexamini", name: "ARRI Alexa Mini (S35)",   sw: 28.25 },
+  { id: "alexa35",   name: "ARRI Alexa 35 (S35)",      sw: 27.99 },
+  { id: "alexamini", name: "ARRI Alexa Mini (S35)",    sw: 28.25 },
   { id: "venice",    name: "Sony Venice (Full Frame)", sw: 35.9 },
-  { id: "komodo",    name: "RED Komodo (S35)",        sw: 27.03 },
-  { id: "ff",        name: "Full Frame 36 mm",        sw: 36.0 },
-  { id: "s16",       name: "Super 16",                sw: 12.52 },
+  { id: "komodo",    name: "RED Komodo (S35)",         sw: 27.03 },
+  { id: "ff",        name: "Full Frame 36 mm",         sw: 36.0 },
+  { id: "s16",       name: "Super 16",                 sw: 12.52 },
 ];
 
 const RATIOS = [
@@ -324,32 +318,130 @@ const RATIOS = [
   { id: "9:16", label: "9:16",   r: 9 / 16 },
 ];
 
-/* ---- Estado ---- */
 const state = {
   phoneId: "iphone-12-pro",
-  camId: "uw",
+  camId: null,        // se fija tras enumerar (lente realmente disponible)
   cineId: "alexa35",
   focal: 35,
   ratioId: "2.39",
 };
 
+let backCams = [];    // lentes físicas detectadas: {deviceId, label, type}
+let currentStream = null;
+
 /* ---- Helpers ---- */
 const $ = (s) => document.querySelector(s);
 const rad = (d) => (d * Math.PI) / 180;
 const deg = (r) => (r * 180) / Math.PI;
+const fovFromEq = (eq) => deg(2 * Math.atan(36 / (2 * eq)));
 
+function phone() { return PHONES[state.phoneId]; }
+function camById(id) { return phone().cams.find((x) => x.id === id) || null; }
 function targetHFov() {
   const cam = CINE.find((c) => c.id === state.cineId);
   return deg(2 * Math.atan(cam.sw / (2 * state.focal)));
 }
 function captureHFov() {
-  return PHONES[state.phoneId].cams.find((c) => c.id === state.camId).hfov;
+  const cam = camById(state.camId);
+  return cam ? fovFromEq(cam.eq) : 70;
+}
+function cropScale() {
+  return Math.tan(rad(captureHFov() / 2)) / Math.tan(rad(targetHFov() / 2));
 }
 
-/* Recorte: escala de zoom para pasar del FOV de captura (A) al objetivo (B). */
-function cropScale() {
-  const a = captureHFov(), b = targetHFov();
-  return Math.tan(rad(a / 2)) / Math.tan(rad(b / 2)); // >1 = zoom in; <1 = imposible
+/* ============================================================
+   Cámara: enumerar y conmutar la lente física real
+   ============================================================ */
+function classify(label) {
+  const l = (label || "").toLowerCase();
+  if (/ultra|0\.5|gran angular ultra|ultra gran/.test(l)) return "uw";
+  if (/tele|teleob/.test(l)) return "tele";
+  if (/wide|gran angular|back|trasera|rear|camera 2|posterior/.test(l)) return "wide";
+  return "?";
+}
+function isFront(label) { return /front|frontal|face|selfie/i.test(label || ""); }
+
+async function initCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return camError("Este navegador no soporta acceso a la cámara.");
+  }
+  try {
+    // 1) permiso (desbloquea las etiquetas para enumerar)
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      audio: false, video: { facingMode: { ideal: "environment" } },
+    });
+    $("#cam").srcObject = currentStream;
+
+    // 2) enumerar lentes traseras
+    const list = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+    backCams = list
+      .filter((d) => !isFront(d.label))
+      .map((d) => ({ deviceId: d.deviceId, label: d.label, type: classify(d.label) }));
+
+    // Si no hay etiquetas (permiso parcial) o nada clasificado, usa lo que haya
+    if (backCams.length === 0 && list.length) {
+      backCams = list.map((d) => ({ deviceId: d.deviceId, label: d.label, type: "wide" }));
+    }
+
+    // 3) elegir por defecto la lente más angular disponible y conmutar a ella
+    const order = ["uw", "wide", "tele"];
+    const firstType = order.find((t) => deviceForType(t)) || detectedTypes()[0] || "wide";
+    await selectCam(firstType, { silent: true });
+    updateCamStatus();
+    buildCamRows();
+  } catch (err) {
+    const name = err && err.name ? err.name : "Error";
+    camError(
+      name === "NotAllowedError"
+        ? "Permiso de cámara denegado. Actívalo en Ajustes de Safari y recarga."
+        : "No se pudo acceder a la cámara (" + name + "). Requiere HTTPS o localhost."
+    );
+  }
+}
+
+function detectedTypes() { return [...new Set(backCams.map((d) => d.type))]; }
+function deviceForType(type) {
+  // preferimos etiquetas de lente física frente a cámaras "combinadas" (dual/triple)
+  const cands = backCams.filter((d) => d.type === type);
+  return cands.find((d) => !/dual|triple|combin/i.test(d.label)) || cands[0] || null;
+}
+
+async function useCamera(deviceId) {
+  if (currentStream) currentStream.getTracks().forEach((t) => t.stop());
+  currentStream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+  });
+  const cam = $("#cam");
+  cam.srcObject = currentStream;
+  await cam.play().catch(() => {});
+}
+
+async function selectCam(type, opts = {}) {
+  const dev = deviceForType(type);
+  if (!dev && !opts.silent) return;            // no seleccionable si no hay lente real
+  state.camId = camById(type) ? type : (phone().cams[0] && phone().cams[0].id);
+  if (dev) {
+    try { await useCamera(dev.deviceId); }
+    catch (e) { /* iOS puede rechazar exact; se queda con el stream actual */ }
+  }
+  buildCamRows();
+  render();
+}
+
+function updateCamStatus() {
+  const el = $("#camStatus");
+  el.classList.remove("err");
+  if (!backCams.length) { el.textContent = "No se detectaron lentes."; return; }
+  const found = detectedTypes().filter((t) => t !== "?");
+  const names = { uw: "ultra gran angular", wide: "gran angular", tele: "teleobjetivo" };
+  const human = found.map((t) => names[t] || "otra").join(", ");
+  el.textContent = "Lentes detectadas: " + (human || backCams.length + " cámara(s)") + ".";
+}
+function camError(msg) {
+  const el = $("#camStatus");
+  el.textContent = msg;
+  el.classList.add("err");
 }
 
 /* ============================================================
@@ -364,95 +456,77 @@ function layoutMask() {
   mask.style.width = Math.round(w) + "px";
   mask.style.height = Math.round(h) + "px";
 }
-
 function applyCrop() {
   const s = cropScale();
-  const cam = $("#cam");
-  const warn = $("#warn");
+  const cam = $("#cam"), warn = $("#warn");
   if (s < 1) {
-    // El objetivo es más ancho que lo que capta el móvil: no se puede "des-recortar".
     cam.style.transform = "scale(1)";
-    warn.textContent = "Focal demasiado abierta para esta cámara del móvil — usa la ultra gran angular";
+    warn.textContent = "Focal demasiado abierta para esta lente — usa una lente más angular";
     warn.classList.add("show");
   } else {
     cam.style.transform = "scale(" + s.toFixed(4) + ")";
     warn.classList.remove("show");
   }
 }
-
 function updateReadout() {
   const cine = CINE.find((c) => c.id === state.cineId);
   $("#ro-target").textContent = cine.name.split(" (")[0] + " · " + state.focal + "mm";
   $("#ro-fov").textContent = targetHFov().toFixed(0) + "°";
 }
-
-function render() {
-  layoutMask();
-  applyCrop();
-  updateReadout();
-}
+function render() { layoutMask(); applyCrop(); updateReadout(); }
 
 /* ============================================================
-   Construcción de UI
+   UI
    ============================================================ */
 function buildRatios() {
-  const box = $("#ratios");
+  const box = $("#topbar");
   box.innerHTML = "";
   RATIOS.forEach((r) => {
     const el = document.createElement("div");
-    el.className = "chip" + (r.id === state.ratioId ? " active" : "");
+    el.className = "rchip" + (r.id === state.ratioId ? " active" : "");
     el.textContent = r.label;
-    el.onclick = () => {
-      state.ratioId = r.id;
-      buildRatios();
-      render();
-    };
+    el.onclick = () => { state.ratioId = r.id; buildRatios(); render(); };
     box.appendChild(el);
   });
 }
-
 function buildPhones() {
   const sel = $("#phone");
   sel.innerHTML = "";
   Object.entries(PHONES).forEach(([id, p]) => {
     const o = document.createElement("option");
-    o.value = id;
-    o.textContent = p.name;
+    o.value = id; o.textContent = p.name;
     sel.appendChild(o);
   });
   sel.value = state.phoneId;
   sel.onchange = () => {
     state.phoneId = sel.value;
-    state.camId = PHONES[state.phoneId].cams[0].id;
-    buildCamRows();
-    render();
+    // reelegir una lente válida del nuevo modelo que además exista físicamente
+    const order = ["uw", "wide", "tele"];
+    const t = order.find((x) => camById(x) && deviceForType(x)) || phone().cams[0].id;
+    selectCam(t);
   };
 }
-
 function buildCamRows() {
   const body = $("#camrows");
   body.innerHTML = "";
-  PHONES[state.phoneId].cams.forEach((c) => {
+  phone().cams.forEach((cam) => {
+    const has = !!deviceForType(cam.id);
     const tr = document.createElement("tr");
-    tr.className = "cam" + (c.id === state.camId ? " active" : "");
+    tr.className = "cam" + (cam.id === state.camId ? " active" : "") + (has ? "" : " disabled");
+    const tag = has ? "" : "<span class='tag'>no disp.</span>";
     tr.innerHTML =
-      "<td>" + c.label + "</td><td>" + c.eq + "</td><td>" + c.hfov + "°</td>";
-    tr.onclick = () => {
-      state.camId = c.id;
-      buildCamRows();
-      render();
-    };
+      "<td>" + cam.label + tag + "</td><td>" + cam.eq + " mm</td><td>" +
+      fovFromEq(cam.eq).toFixed(0) + "°</td>";
+    if (has) tr.onclick = () => selectCam(cam.id);
     body.appendChild(tr);
   });
 }
-
 function buildCine() {
   const sel = $("#cine");
   sel.innerHTML = "";
   CINE.forEach((c) => {
     const o = document.createElement("option");
-    o.value = c.id;
-    o.textContent = c.name;
+    o.value = c.id; o.textContent = c.name;
     sel.appendChild(o);
   });
   sel.value = state.cineId;
@@ -464,42 +538,18 @@ $("#focal").oninput = (e) => {
   if (!isNaN(v) && v > 0) { state.focal = v; render(); }
 };
 
+function reveal() {
+  $("#panel").classList.remove("show");
+  $("#cam").classList.add("live");
+  $("#topbar").classList.add("show");
+  $("#hud").classList.add("show");
+  render();
+}
+$("#close").onclick = reveal;
 $("#open").onclick = () => $("#panel").classList.add("show");
-$("#close").onclick = () => $("#panel").classList.remove("show");
-$("#panel").onclick = (e) => { if (e.target.id === "panel") $("#panel").classList.remove("show"); };
 
 window.addEventListener("resize", layoutMask);
 window.addEventListener("orientationchange", () => setTimeout(layoutMask, 250));
-
-/* ============================================================
-   Cámara
-   ============================================================ */
-async function startCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    return showError("Este navegador no soporta acceso a la cámara.");
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-    });
-    const cam = $("#cam");
-    cam.srcObject = stream;
-    await cam.play().catch(() => {});
-  } catch (err) {
-    showError(
-      "No se pudo acceder a la cámara.<br><br>" +
-      "Necesita <b>HTTPS</b> (o localhost) y permiso.<br>" +
-      "<span style='font-size:12px'>" + (err && err.name ? err.name : "Error") + "</span>"
-    );
-  }
-}
-
-function showError(html) {
-  const e = $("#err");
-  e.innerHTML = "<div>" + html + "</div>";
-  e.classList.add("show");
-}
 
 /* ---- Init ---- */
 buildRatios();
@@ -507,5 +557,5 @@ buildPhones();
 buildCamRows();
 buildCine();
 render();
-startCamera();
+initCamera();
 </script>
