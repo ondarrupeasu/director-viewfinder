@@ -254,6 +254,26 @@
   #breakdown b { color: var(--txt); font-weight: 600; }
   #breakdown .res { margin-top: 4px; }
   #breakdown.warn { border-color: var(--accent); background: rgba(255, 90, 82, 0.10); }
+
+  /* ---- Aviso de girar a horizontal ---- */
+  #rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: #000;
+    color: var(--txt);
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  #rotate.show { display: flex; }
+  #rotate .ico { font-size: 46px; display: block; margin-bottom: 16px; animation: tip 2.2s ease-in-out infinite; }
+  #rotate small { display: block; margin-top: 8px; color: var(--txt-dim); font-size: 13px; }
+  @keyframes tip { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-90deg); } }
 </style>
 
 <div id="stage">
@@ -263,6 +283,14 @@
 
 <div id="topbar"></div>
 <div id="warn"></div>
+
+<div id="rotate">
+  <div>
+    <span class="ico">🔄</span>
+    Gira el móvil a horizontal
+    <small>El visor de cine trabaja en apaisado</small>
+  </div>
+</div>
 
 <div id="hud">
   <div class="pill" id="readout"><span id="ro-target">—</span> · <b id="ro-fov">—°</b></div>
@@ -847,12 +875,31 @@ function reveal() {
   $("#topbar").classList.add("show");
   $("#hud").classList.add("show");
   render();
+  updateOrientation();
 }
 $("#close").onclick = reveal;
-$("#open").onclick = () => $("#panel").classList.add("show");
+$("#open").onclick = () => { $("#panel").classList.add("show"); updateOrientation(); };
 
-window.addEventListener("resize", layoutMask);
-window.addEventListener("orientationchange", () => setTimeout(layoutMask, 250));
+/* En móvil, el visor de cine exige apaisado (el sensor y la matemática del FOV
+   asumen horizontal). iOS no deja forzar la orientación por web → detectamos
+   vertical y tapamos el visor con un aviso hasta que se gire. */
+function isPhonePortrait() {
+  return window.matchMedia("(pointer: coarse)").matches &&
+         window.matchMedia("(orientation: portrait)").matches;
+}
+function updateOrientation() {
+  const live = $("#cam").classList.contains("live");
+  const panelOpen = $("#panel").classList.contains("show");
+  const show = live && !panelOpen && isPhonePortrait();
+  $("#rotate").classList.toggle("show", show);
+  if (!show) layoutMask();
+}
+
+window.addEventListener("resize", updateOrientation);
+window.addEventListener("orientationchange", () => setTimeout(updateOrientation, 250));
+const mqPortrait = window.matchMedia("(orientation: portrait)");
+if (mqPortrait.addEventListener) mqPortrait.addEventListener("change", updateOrientation);
+else if (mqPortrait.addListener) mqPortrait.addListener(updateOrientation);
 
 /* ---- Init ---- */
 buildRatios();
