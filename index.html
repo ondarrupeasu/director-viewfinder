@@ -1,6 +1,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Viewfinder">
 <title>Visor de director</title>
 <style>
   :root {
@@ -423,8 +427,10 @@ const PHONES = [
   { id: "iphone-13-pro",     os: "iOS", name: "iPhone 13 Pro / Max", cams: [c("uw",13), c("wide",26), c("tele",77)] },
   { id: "iphone-12-pro-max", os: "iOS", name: "iPhone 12 Pro Max", cams: [c("uw",13), c("wide",26), c("tele",65)] },
   { id: "iphone-12-pro",     os: "iOS", name: "iPhone 12 Pro",     cams: [c("uw",13), c("wide",26), c("tele",52)] },
-  { id: "iphone-2cam",       os: "iOS", name: "iPhone (2 cámaras: UW+Wide)", cams: [c("uw",13), c("wide",26)] },
-  { id: "iphone-se",         os: "iOS", name: "iPhone SE (1 cámara)", cams: [c("wide",28)] },
+  { id: "iphone-2cam",       os: "iOS", name: "iPhone 11/12/13/14 (UW + Wide)", cams: [c("uw",13), c("wide",26)] },
+  { id: "iphone-x-xs",       os: "iOS", name: "iPhone X / XS / XS Max (Wide + Tele)", cams: [c("wide",26), c("tele",52)] },
+  { id: "iphone-78plus",     os: "iOS", name: "iPhone 7 Plus / 8 Plus (Wide + Tele)", cams: [c("wide",28), c("tele",57)] },
+  { id: "iphone-se",         os: "iOS", name: "iPhone SE / 1 cámara (Wide)", cams: [c("wide",28)] },
   { id: "iphone-generic-3",  os: "iOS", name: "iPhone genérico (3 cámaras)", cams: [c("uw",13), c("wide",26), c("tele",52)] },
   // ---- Android — modelo detectable por User-Agent / Client Hints ----
   { id: "s24-ultra", os: "Android", name: "Samsung Galaxy S24 Ultra", match: ["S24 Ultra","SM-S928"], cams: [c("uw",13), c("wide",24), c("tele",70)] },
