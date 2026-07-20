@@ -240,6 +240,20 @@
   .note b { color: var(--txt); font-weight: 600; }
   #camStatus { font-size: 12px; margin-top: 10px; }
   #camStatus.err { color: var(--accent); }
+  td .tag.warn { color: var(--accent); }
+
+  #breakdown {
+    margin: 4px 0 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+  #breakdown b { color: var(--txt); font-weight: 600; }
+  #breakdown .res { margin-top: 4px; }
+  #breakdown.warn { border-color: var(--accent); background: rgba(255, 90, 82, 0.10); }
 </style>
 
 <div id="stage">
@@ -295,6 +309,8 @@
       <div class="fchips" id="focalChips"></div>
       <div class="note">Solo cuentan focal + formato de sensor: dos objetivos de la misma focal dan el mismo encuadre (la marca cambia el carácter, no el ángulo).</div>
     </div>
+
+    <div id="breakdown"></div>
 
     <button class="done" id="close">Ver encuadre</button>
   </div>
@@ -613,7 +629,7 @@ function updateReadout() {
   $("#ro-target").textContent = cine.name.split(" (")[0] + " · " + Math.round(state.focal) + "mm" + sq;
   $("#ro-fov").textContent = targetHFov().toFixed(0) + "°";
 }
-function render() { layoutMask(); applyCrop(); updateReadout(); }
+function render() { layoutMask(); applyCrop(); updateReadout(); buildCamRows(); buildBreakdown(); }
 
 /* ============================================================
    UI
@@ -694,17 +710,63 @@ async function detectPhone() {
 function buildCamRows() {
   const body = $("#camrows");
   body.innerHTML = "";
-  phone().cams.forEach((cam) => {
-    const has = !!deviceForType(cam.id);
+  const tFov = targetHFov();
+  const rows = phone().cams.map((cam) => ({ cam, phys: !!deviceForType(cam.id), fov: fovFromEq(cam.eq) }));
+  const anyCovers = rows.some((r) => r.phys && r.fov >= tFov);   // ¿alguna lente da el ancho?
+
+  rows.forEach(({ cam, phys, fov }) => {
+    const covers = fov >= tFov;
+    const active = cam.id === state.camId;
+    let cls = "cam", tag = "", clickable = false;
+
+    if (!phys) {
+      cls += " disabled"; tag = "<span class='tag'>no disp.</span>";
+    } else if (active) {
+      cls += " active"; clickable = true;
+      if (!covers) tag = "<span class='tag warn'>recorta</span>";
+    } else if (covers) {
+      clickable = true;
+    } else if (anyCovers) {
+      cls += " disabled"; tag = "<span class='tag'>no cubre</span>"; // hay otra mejor: no dejar elegir ésta
+    } else {
+      clickable = true; tag = "<span class='tag warn'>recorta</span>"; // ninguna cubre: no atrapar al usuario
+    }
+
     const tr = document.createElement("tr");
-    tr.className = "cam" + (cam.id === state.camId ? " active" : "") + (has ? "" : " disabled");
-    const tag = has ? "" : "<span class='tag'>no disp.</span>";
+    tr.className = cls;
     tr.innerHTML =
-      "<td>" + cam.label + tag + "</td><td>" + cam.eq + " mm</td><td>" +
-      fovFromEq(cam.eq).toFixed(0) + "°</td>";
-    if (has) tr.onclick = () => selectCam(cam.id);
+      "<td>" + cam.label + tag + "</td><td>" + cam.eq + " mm</td><td>" + fov.toFixed(0) + "°</td>";
+    if (clickable) tr.onclick = () => selectCam(cam.id);
     body.appendChild(tr);
   });
+}
+
+function buildBreakdown() {
+  const el = $("#breakdown");
+  if (!el) return;
+  const cine = CINE.find((c) => c.id === state.cineId);
+  const cam = camById(state.camId);
+  const tFov = targetHFov();
+  const sq = state.squeeze !== 1 ? " ×" + state.squeeze + " anamórfico" : "";
+  let html = "";
+  html += "<div><b>Cámara:</b> " + cine.name.split(" (")[0] + " · sensor " + cine.sw.toFixed(1) + " mm</div>";
+  html += "<div><b>Óptica:</b> " + Math.round(state.focal) + " mm" + sq + " → campo <b>" + tFov.toFixed(0) + "°</b> (horizontal)</div>";
+  if (cam) {
+    const s = cropScale();
+    html += "<div><b>Tu móvil:</b> " + phone().name + " · " + cam.label + " " + fovFromEq(cam.eq).toFixed(0) + "°</div>";
+    if (s >= 1) {
+      el.classList.remove("warn");
+      html += "<div class='res'><b>Conversión:</b> recorte ×" + s.toFixed(2) + " (zoom digital) → encuadre fiel ✓</div>";
+    } else {
+      el.classList.add("warn");
+      html += "<div class='res'><b>Conversión:</b> la óptica pide " + tFov.toFixed(0) +
+        "° y tu lente da " + fovFromEq(cam.eq).toFixed(0) + "° → no cabe: vista recortada, no real ⚠</div>";
+    }
+  } else {
+    el.classList.remove("warn");
+    html += "<div><b>Tu móvil:</b> esperando acceso a la cámara…</div>";
+  }
+  el.innerHTML = html;
 }
 function buildCine() {
   const sel = $("#cine");
