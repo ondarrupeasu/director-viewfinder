@@ -274,6 +274,35 @@
   #rotate .ico { font-size: 46px; display: block; margin-bottom: 16px; animation: tip 2.2s ease-in-out infinite; }
   #rotate small { display: block; margin-top: 8px; color: var(--txt-dim); font-size: 13px; }
   @keyframes tip { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-90deg); } }
+
+  /* ---- Pantalla de "esto es para móvil/tablet" ---- */
+  #deskgate {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    background: #000;
+    color: var(--txt);
+    text-align: center;
+  }
+  #deskgate.show { display: flex; }
+  #deskgate > div { max-width: 430px; }
+  #deskgate .ico { font-size: 52px; display: block; margin-bottom: 14px; }
+  #deskgate .t { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+  #deskgate p { color: var(--txt-dim); font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+  #deskgate .u { color: var(--txt); }
+  #deskgate #gateUrl { color: var(--accent); word-break: break-all; }
+  #deskgate #gateGo {
+    display: inline-block;
+    margin-top: 10px;
+    color: var(--txt-dim);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 </style>
 
 <div id="stage">
@@ -289,6 +318,16 @@
     <span class="ico">🔄</span>
     Gira el móvil a horizontal
     <small>El visor de cine trabaja en apaisado</small>
+  </div>
+</div>
+
+<div id="deskgate">
+  <div>
+    <span class="ico">📱</span>
+    <div class="t">Visor de director</div>
+    <p>Es una herramienta de <b>móvil o tablet</b>: usa su cámara para previsualizar el encuadre apuntando a la escena. En un ordenador no tiene sentido (la webcam es fija y su ángulo, desconocido).</p>
+    <p class="u">Ábrelo en tu teléfono:<br><span id="gateUrl"></span></p>
+    <span id="gateGo">Solo estoy mirando — continuar igualmente →</span>
   </div>
 </div>
 
@@ -560,6 +599,11 @@ async function initCamera() {
     backCams = list
       .filter((d) => !isFront(d.label))
       .map((d) => ({ deviceId: d.deviceId, label: d.label, type: classify(d.label) }));
+
+    // Descartar cámaras virtuales (OBS y compañía) si hay alguna real
+    const VIRTUAL = /obs|virtual|snap camera|manycam|droidcam|epoccam|\bndi\b/i;
+    const realCams = backCams.filter((d) => !VIRTUAL.test(d.label));
+    if (realCams.length) backCams = realCams;
 
     // Si no hay etiquetas (permiso parcial) o nada clasificado, usa lo que haya
     if (backCams.length === 0 && list.length) {
@@ -902,6 +946,14 @@ if (mqPortrait.addEventListener) mqPortrait.addEventListener("change", updateOri
 else if (mqPortrait.addListener) mqPortrait.addListener(updateOrientation);
 
 /* ---- Init ---- */
+function isMobileOrTablet() {
+  const ua = navigator.userAgent || "";
+  const iOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const android = /Android/i.test(ua);
+  const touch = navigator.maxTouchPoints > 0 && window.matchMedia("(pointer: coarse)").matches;
+  return iOS || android || touch;
+}
+
 buildRatios();
 buildPhones();
 buildCamRows();
@@ -909,5 +961,13 @@ buildCine();
 buildLenses();
 render();
 detectPhone();
-initCamera();
+
+if (isMobileOrTablet()) {
+  initCamera();
+} else {
+  // En ordenador NO arrancamos la cámara (evita coger la webcam/OBS virtual)
+  $("#gateUrl").textContent = location.href.replace(/^https?:\/\//, "");
+  $("#deskgate").classList.add("show");
+  $("#gateGo").onclick = () => { $("#deskgate").classList.remove("show"); initCamera(); };
+}
 </script>
