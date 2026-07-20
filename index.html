@@ -265,8 +265,9 @@
     </div>
 
     <div class="group">
-      <label>Cámara de cine a simular</label>
+      <label>Cámara a simular</label>
       <select id="cine"></select>
+      <div class="note">Cine y foto/híbridas (Sony α, Lumix GH…). El número es el <b>ancho de sensor</b>. Algunas híbridas <b>recortan en vídeo</b> según el modo (p.ej. 4K60 en Super35); aquí se usa el sensor completo.</div>
     </div>
 
     <div class="group">
@@ -299,14 +300,35 @@ function c(id, eq) {
   return { id, label, eq };
 }
 
-/* Cámaras de cine: ancho de sensor (mm) → FOV objetivo. */
+/* Cámaras a simular: ancho de sensor (mm) → FOV objetivo. Agrupadas por formato.
+   sw = ancho útil del sensor a fotograma completo. Nota: algunas foto/híbridas
+   recortan en ciertos modos de vídeo (p.ej. 4K60 en Super35) — eso llega en F2. */
 const CINE = [
-  { id: "alexa35",   name: "ARRI Alexa 35 (S35)",      sw: 27.99 },
-  { id: "alexamini", name: "ARRI Alexa Mini (S35)",    sw: 28.25 },
-  { id: "venice",    name: "Sony Venice (Full Frame)", sw: 35.9 },
-  { id: "komodo",    name: "RED Komodo (S35)",         sw: 27.03 },
-  { id: "ff",        name: "Full Frame 36 mm",         sw: 36.0 },
-  { id: "s16",       name: "Super 16",                 sw: 12.52 },
+  // Cine / cámaras de cine
+  { id: "alexa35",   g: "Cine",       name: "ARRI Alexa 35 (S35)",       sw: 27.99 },
+  { id: "alexamini", g: "Cine",       name: "ARRI Alexa Mini (S35)",     sw: 28.25 },
+  { id: "alexalf",   g: "Cine",       name: "ARRI Alexa Mini LF (LF)",   sw: 36.70 },
+  { id: "venice",    g: "Cine",       name: "Sony Venice (Full Frame)",  sw: 35.90 },
+  { id: "komodo",    g: "Cine",       name: "RED Komodo (S35)",          sw: 27.03 },
+  { id: "raptor",    g: "Cine",       name: "RED V-Raptor (VV/FF)",      sw: 40.96 },
+  { id: "bmpcc6k",   g: "Cine",       name: "Blackmagic Pocket 6K (S35)", sw: 23.10 },
+  { id: "bmpcc4k",   g: "Cine",       name: "Blackmagic Pocket 4K (M4/3)", sw: 18.96 },
+  // Full Frame (foto/híbrida)
+  { id: "a7iv",      g: "Full Frame", name: "Sony α7 IV",                sw: 35.90 },
+  { id: "a7iii",     g: "Full Frame", name: "Sony α7 III",               sw: 35.90 },
+  { id: "a7siii",    g: "Full Frame", name: "Sony α7S III",              sw: 35.90 },
+  { id: "ff",        g: "Full Frame", name: "Genérico Full Frame 36 mm", sw: 36.00 },
+  // APS-C (foto/híbrida)
+  { id: "a6600",     g: "APS-C",      name: "Sony α6600",                sw: 23.50 },
+  { id: "a6400",     g: "APS-C",      name: "Sony α6400",                sw: 23.50 },
+  { id: "apsc",      g: "APS-C",      name: "Genérico APS-C (Sony/Nikon)", sw: 23.50 },
+  { id: "apscc",     g: "APS-C",      name: "Genérico APS-C (Canon)",    sw: 22.30 },
+  // Micro 4/3 (foto/híbrida)
+  { id: "gh6",       g: "Micro 4/3",  name: "Panasonic Lumix GH6",       sw: 17.30 },
+  { id: "gh5",       g: "Micro 4/3",  name: "Panasonic Lumix GH5 / GH5 II", sw: 17.30 },
+  { id: "m43",       g: "Micro 4/3",  name: "Genérico Micro 4/3",        sw: 17.30 },
+  // Otros
+  { id: "s16",       g: "Otros",      name: "Super 16",                  sw: 12.52 },
 ];
 
 const RATIOS = [
@@ -524,10 +546,17 @@ function buildCamRows() {
 function buildCine() {
   const sel = $("#cine");
   sel.innerHTML = "";
+  let group = null, og = null;
   CINE.forEach((c) => {
+    if (c.g !== group) {
+      group = c.g;
+      og = document.createElement("optgroup");
+      og.label = c.g;
+      sel.appendChild(og);
+    }
     const o = document.createElement("option");
-    o.value = c.id; o.textContent = c.name;
-    sel.appendChild(o);
+    o.value = c.id; o.textContent = c.name + " · " + c.sw.toFixed(1) + " mm";
+    og.appendChild(o);
   });
   sel.value = state.cineId;
   sel.onchange = () => { state.cineId = sel.value; render(); };
