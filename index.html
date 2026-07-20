@@ -367,7 +367,8 @@
     <div class="group">
       <label>Adaptador / reductor focal</label>
       <select id="reducer"></select>
-      <div class="note">Un <b>Speed Booster</b> acorta la focal (factor &lt;1) → encuadra más ancho. Úsalo con ópticas EF adaptadas; ninguno si la óptica es nativa.</div>
+      <input id="reducerFactor" type="number" min="0.4" max="1" step="0.01" value="0.71" inputmode="decimal" style="display: none; margin-top: 8px">
+      <div class="note">Un <b>Speed Booster</b> acorta la focal (factor &lt;1) → encuadra más ancho. Úsalo con ópticas EF adaptadas; ninguno si la óptica es nativa. <b>Personalizado</b>: mide tu factor (focal nativa ÷ focal adaptada al igualar encuadre) y clávalo.</div>
     </div>
 
     <div class="group">
@@ -545,6 +546,7 @@ const REDUCERS = [
   { id: "sb-071",  name: "Speed Booster 0.71× (EF→M4/3)",    f: 0.71 },
   { id: "sb-xl",   name: "Speed Booster XL 0.64× (EF→M4/3)", f: 0.64 },
   { id: "sb-ultra",name: "Speed Booster Ultra 0.71× (EF→M4/3)", f: 0.71 },
+  { id: "custom",  name: "Personalizado (medido)…",             f: null },
 ];
 
 const RATIOS = [
@@ -562,6 +564,7 @@ const state = {
   cineId: "alexa35",
   lensId: "primes-cine",
   reducerId: "none",  // Speed Booster / reductor focal
+  reducerCustom: 0.71, // factor si reducerId === "custom"
   squeeze: 1,         // >1 = anamórfico
   focal: 35,
   ratioId: "2.39",
@@ -579,8 +582,9 @@ const fovFromEq = (eq) => deg(2 * Math.atan(36 / (2 * eq)));
 function phone() { return PHONES.find((p) => p.id === state.phoneId) || PHONES[0]; }
 function camById(id) { return phone().cams.find((x) => x.id === id) || null; }
 function reducerFactor() {
+  if (state.reducerId === "custom") return state.reducerCustom || 1;
   const r = REDUCERS.find((x) => x.id === state.reducerId);
-  return r ? r.f : 1;
+  return r && r.f ? r.f : 1;
 }
 function effFocal() { return state.focal * reducerFactor(); }  // reductor acorta la focal
 function targetHFov() {
@@ -902,7 +906,9 @@ function buildReducers() {
     sel.appendChild(o);
   });
   sel.value = state.reducerId;
-  sel.onchange = () => { state.reducerId = sel.value; render(); };
+  const toggle = () => { $("#reducerFactor").style.display = (state.reducerId === "custom") ? "block" : "none"; };
+  sel.onchange = () => { state.reducerId = sel.value; toggle(); render(); };
+  toggle();
 }
 
 function buildLenses() {
@@ -957,6 +963,11 @@ function refreshFocalChips() {
 $("#focal").oninput = (e) => {
   const v = parseFloat(e.target.value);
   if (!isNaN(v) && v > 0) { state.focal = v; refreshFocalChips(); render(); }
+};
+
+$("#reducerFactor").oninput = (e) => {
+  const v = parseFloat(e.target.value);
+  if (!isNaN(v) && v > 0) { state.reducerCustom = v; render(); }
 };
 
 function reveal() {
