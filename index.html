@@ -365,6 +365,12 @@
     </div>
 
     <div class="group">
+      <label>Adaptador / reductor focal</label>
+      <select id="reducer"></select>
+      <div class="note">Un <b>Speed Booster</b> acorta la focal (factor &lt;1) → encuadra más ancho. Úsalo con ópticas EF adaptadas; ninguno si la óptica es nativa.</div>
+    </div>
+
+    <div class="group">
       <label>Óptica / juego</label>
       <select id="lens"></select>
       <div class="note" id="lensNote"></div>
@@ -512,6 +518,13 @@ const CINE = [
 /* Juegos de óptica. La marca NO cambia el encuadre: primes/zoom solo fijan focales
    rápidas. El anamórfico SÍ (squeeze ensancha el campo horizontal → sw · squeeze). */
 const LENS_SETS = [
+  // ---- Mis ópticas (Tartanga) ----
+  { id: "canon-70200",  g: "Mis ópticas (Tartanga)", name: "Canon EF 70–200 f/2.8 IS II", zoom: [70,200] },
+  { id: "canon-50",     g: "Mis ópticas (Tartanga)", name: "Canon EF 50 f/1.2",           focals: [50] },
+  { id: "canon-100",    g: "Mis ópticas (Tartanga)", name: "Canon EF 100 macro f/2.8",    focals: [100] },
+  { id: "tokina-1116",  g: "Mis ópticas (Tartanga)", name: "Tokina 11–16 f/2.8",          zoom: [11,16] },
+  { id: "pana-70200",   g: "Mis ópticas (Tartanga)", name: "Panasonic 70–200 f/2.8",      zoom: [70,200] },
+  // ---- Genéricos ----
   { id: "primes-cine",   g: "Prime (esférico)", name: "Cine primes (juego típico)", focals: [14,18,21,25,32,35,40,50,65,75,85,100,135] },
   { id: "primes-wide",   g: "Prime (esférico)", name: "Angulares 12–35",            focals: [12,14,16,18,21,25,28,35] },
   { id: "primes-stills", g: "Prime (foto)",     name: "Fotográficos 24–135",        focals: [24,28,35,50,85,105,135] },
@@ -523,6 +536,15 @@ const LENS_SETS = [
   { id: "ana-15",        g: "Anamórfico",       name: "Anamórfico 1.5×",  focals: [25,35,50,75],    squeeze: 1.5 },
   { id: "ana-2x",        g: "Anamórfico",       name: "Anamórfico 2×",    focals: [25,35,40,50,75,100], squeeze: 2 },
   { id: "custom",        g: "Otro",             name: "Manual (introduce focal)",   focals: [] },
+];
+
+/* Reductores focales (Speed Booster y similares). Acortan la focal efectiva
+   (factor < 1) → ensanchan el campo y abren diafragma. Solo con montura adaptada. */
+const REDUCERS = [
+  { id: "none",    name: "Ninguno (montura directa)",        f: 1 },
+  { id: "sb-071",  name: "Speed Booster 0.71× (EF→M4/3)",    f: 0.71 },
+  { id: "sb-xl",   name: "Speed Booster XL 0.64× (EF→M4/3)", f: 0.64 },
+  { id: "sb-ultra",name: "Speed Booster Ultra 0.71× (EF→M4/3)", f: 0.71 },
 ];
 
 const RATIOS = [
@@ -539,6 +561,7 @@ const state = {
   camId: null,        // se fija tras enumerar (lente realmente disponible)
   cineId: "alexa35",
   lensId: "primes-cine",
+  reducerId: "none",  // Speed Booster / reductor focal
   squeeze: 1,         // >1 = anamórfico
   focal: 35,
   ratioId: "2.39",
@@ -555,10 +578,15 @@ const fovFromEq = (eq) => deg(2 * Math.atan(36 / (2 * eq)));
 
 function phone() { return PHONES.find((p) => p.id === state.phoneId) || PHONES[0]; }
 function camById(id) { return phone().cams.find((x) => x.id === id) || null; }
+function reducerFactor() {
+  const r = REDUCERS.find((x) => x.id === state.reducerId);
+  return r ? r.f : 1;
+}
+function effFocal() { return state.focal * reducerFactor(); }  // reductor acorta la focal
 function targetHFov() {
   const cam = CINE.find((c) => c.id === state.cineId);
   const swEff = cam.sw * state.squeeze;   // anamórfico ensancha el campo horizontal
-  return deg(2 * Math.atan(swEff / (2 * state.focal)));
+  return deg(2 * Math.atan(swEff / (2 * effFocal())));
 }
 function currentLens() { return LENS_SETS.find((L) => L.id === state.lensId); }
 function lensPresets(L) {
@@ -821,9 +849,13 @@ function buildBreakdown() {
   const cam = camById(state.camId);
   const tFov = targetHFov();
   const sq = state.squeeze !== 1 ? " ×" + state.squeeze + " anamórfico" : "";
+  const red = reducerFactor();
+  const redTxt = red !== 1
+    ? " · reductor ×" + red + " → " + effFocal().toFixed(1).replace(/\.0$/, "") + " mm efectivos"
+    : "";
   let html = "";
   html += "<div><b>Cámara:</b> " + cine.name.split(" (")[0] + " · sensor " + cine.sw.toFixed(1) + " mm</div>";
-  html += "<div><b>Óptica:</b> " + Math.round(state.focal) + " mm" + sq + " → campo <b>" + tFov.toFixed(0) + "°</b> (horizontal)</div>";
+  html += "<div><b>Óptica:</b> " + Math.round(state.focal) + " mm" + sq + redTxt + " → campo <b>" + tFov.toFixed(0) + "°</b> (horizontal)</div>";
   if (cam) {
     const s = cropScale();
     html += "<div><b>Tu móvil:</b> " + phone().name + " · " + cam.label + " " + fovFromEq(cam.eq).toFixed(0) + "°</div>";
@@ -858,6 +890,19 @@ function buildCine() {
   });
   sel.value = state.cineId;
   sel.onchange = () => { state.cineId = sel.value; render(); };
+}
+
+function buildReducers() {
+  const sel = $("#reducer");
+  sel.innerHTML = "";
+  REDUCERS.forEach((r) => {
+    const o = document.createElement("option");
+    o.value = r.id;
+    o.textContent = r.name;
+    sel.appendChild(o);
+  });
+  sel.value = state.reducerId;
+  sel.onchange = () => { state.reducerId = sel.value; render(); };
 }
 
 function buildLenses() {
@@ -959,6 +1004,7 @@ buildRatios();
 buildPhones();
 buildCamRows();
 buildCine();
+buildReducers();
 buildLenses();
 render();
 detectPhone();
