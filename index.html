@@ -262,8 +262,9 @@
 
     <div class="group">
       <label>Tu móvil</label>
+      <div class="note" id="phoneDetect" style="margin: 0 0 8px">Detectando…</div>
       <select id="phone"></select>
-      <div class="note">La web no puede detectar el modelo, elígelo tú. Los ángulos son aproximados; en F3 habrá calibración fina.</div>
+      <div class="note">En Android se intenta autodetectar el modelo; en iPhone iOS no lo permite (elígelo). Ángulos aproximados; calibración fina en F3.</div>
     </div>
 
     <div class="group">
@@ -304,16 +305,38 @@
    Datos. FOV se calcula desde la focal equivalente (35mm, 36mm de ancho):
    hfov = 2·atan(36 / (2·eq)). Ampliar catálogo en F2.
    ============================================================ */
-const PHONES = {
-  "iphone-12-pro":        { name: "iPhone 12 Pro",            cams: [c("uw",13), c("wide",26), c("tele",52)] },
-  "iphone-12-pro-max":    { name: "iPhone 12 Pro Max",        cams: [c("uw",13), c("wide",26), c("tele",65)] },
-  "iphone-13-14-pro":     { name: "iPhone 13 / 14 Pro",       cams: [c("uw",13), c("wide",26), c("tele",77)] },
-  "iphone-15-pro":        { name: "iPhone 15 Pro",            cams: [c("uw",13), c("wide",24), c("tele",77)] },
-  "iphone-15-16-promax":  { name: "iPhone 15/16 Pro Max",     cams: [c("uw",13), c("wide",24), c("tele",120)] },
-  "iphone-16-pro":        { name: "iPhone 16 Pro",            cams: [c("uw",13), c("wide",24), c("tele",120)] },
-  "generic-3":            { name: "Genérico (UW + Wide + Tele)", cams: [c("uw",13), c("wide",26), c("tele",50)] },
-  "generic-2":            { name: "Genérico (Wide + Tele)",   cams: [c("wide",26), c("tele",50)] },
-};
+/* Catálogo de móviles. `eq` = focal equivalente (mm) por lente → FOV.
+   `match` (solo Android): subcadenas que aparecen en el User-Agent / Client Hints
+   para autodetectar el modelo. En iOS el modelo NO es legible por web. */
+const PHONES = [
+  // ---- iPhone (iOS) — iOS no expone el modelo por web ----
+  { id: "iphone-16-pro-max", os: "iOS", name: "iPhone 16 Pro Max", cams: [c("uw",13), c("wide",24), c("tele",120)] },
+  { id: "iphone-16-pro",     os: "iOS", name: "iPhone 16 Pro",     cams: [c("uw",13), c("wide",24), c("tele",120)] },
+  { id: "iphone-15-pro-max", os: "iOS", name: "iPhone 15 Pro Max", cams: [c("uw",13), c("wide",24), c("tele",120)] },
+  { id: "iphone-15-pro",     os: "iOS", name: "iPhone 15 Pro",     cams: [c("uw",13), c("wide",24), c("tele",77)] },
+  { id: "iphone-14-pro",     os: "iOS", name: "iPhone 14 Pro / Max", cams: [c("uw",13), c("wide",24), c("tele",77)] },
+  { id: "iphone-13-pro",     os: "iOS", name: "iPhone 13 Pro / Max", cams: [c("uw",13), c("wide",26), c("tele",77)] },
+  { id: "iphone-12-pro-max", os: "iOS", name: "iPhone 12 Pro Max", cams: [c("uw",13), c("wide",26), c("tele",65)] },
+  { id: "iphone-12-pro",     os: "iOS", name: "iPhone 12 Pro",     cams: [c("uw",13), c("wide",26), c("tele",52)] },
+  { id: "iphone-2cam",       os: "iOS", name: "iPhone (2 cámaras: UW+Wide)", cams: [c("uw",13), c("wide",26)] },
+  { id: "iphone-se",         os: "iOS", name: "iPhone SE (1 cámara)", cams: [c("wide",28)] },
+  { id: "iphone-generic-3",  os: "iOS", name: "iPhone genérico (3 cámaras)", cams: [c("uw",13), c("wide",26), c("tele",52)] },
+  // ---- Android — modelo detectable por User-Agent / Client Hints ----
+  { id: "s24-ultra", os: "Android", name: "Samsung Galaxy S24 Ultra", match: ["S24 Ultra","SM-S928"], cams: [c("uw",13), c("wide",24), c("tele",70)] },
+  { id: "s23-ultra", os: "Android", name: "Samsung Galaxy S23 Ultra", match: ["S23 Ultra","SM-S918"], cams: [c("uw",13), c("wide",24), c("tele",70)] },
+  { id: "s22-ultra", os: "Android", name: "Samsung Galaxy S22 Ultra", match: ["S22 Ultra","SM-S908"], cams: [c("uw",13), c("wide",24), c("tele",70)] },
+  { id: "galaxy-s2x", os: "Android", name: "Samsung Galaxy S24 / S23 / S22", match: ["SM-S921","SM-S911","SM-S901","Galaxy S24","Galaxy S23"], cams: [c("uw",13), c("wide",24), c("tele",70)] },
+  { id: "galaxy-a",  os: "Android", name: "Samsung Galaxy A (gama media)", match: ["SM-A"], cams: [c("uw",13), c("wide",26)] },
+  { id: "pixel-8-pro", os: "Android", name: "Google Pixel 8 Pro", match: ["Pixel 8 Pro"], cams: [c("uw",12), c("wide",24), c("tele",112)] },
+  { id: "pixel-7-pro", os: "Android", name: "Google Pixel 7 Pro / 6 Pro", match: ["Pixel 7 Pro","Pixel 6 Pro"], cams: [c("uw",14), c("wide",24), c("tele",120)] },
+  { id: "pixel-8",   os: "Android", name: "Google Pixel 8 / 7 / 6", match: ["Pixel 8","Pixel 7","Pixel 6"], cams: [c("uw",16), c("wide",25)] },
+  { id: "xiaomi-14", os: "Android", name: "Xiaomi 14", match: ["Xiaomi 14","23127"], cams: [c("uw",14), c("wide",23), c("tele",75)] },
+  { id: "xiaomi-13", os: "Android", name: "Xiaomi 13", match: ["Xiaomi 13","2211133"], cams: [c("uw",15), c("wide",24), c("tele",75)] },
+  { id: "oneplus",   os: "Android", name: "OnePlus 12 / 11", match: ["OnePlus 12","OnePlus 11","CPH2581","CPH2449"], cams: [c("uw",14), c("wide",24), c("tele",64)] },
+  { id: "android-3", os: "Android", name: "Android genérico (3 cámaras)", cams: [c("uw",13), c("wide",24), c("tele",70)] },
+  { id: "android-2", os: "Android", name: "Android genérico (UW + Wide)", cams: [c("uw",13), c("wide",24)] },
+  { id: "android-1", os: "Android", name: "Android genérico (1 cámara)", cams: [c("wide",26)] },
+];
 function c(id, eq) {
   const label = { uw: "Ultra gran angular", wide: "Gran angular", tele: "Teleobjetivo" }[id];
   return { id, label, eq };
@@ -446,7 +469,7 @@ const rad = (d) => (d * Math.PI) / 180;
 const deg = (r) => (r * 180) / Math.PI;
 const fovFromEq = (eq) => deg(2 * Math.atan(36 / (2 * eq)));
 
-function phone() { return PHONES[state.phoneId]; }
+function phone() { return PHONES.find((p) => p.id === state.phoneId) || PHONES[0]; }
 function camById(id) { return phone().cams.find((x) => x.id === id) || null; }
 function targetHFov() {
   const cam = CINE.find((c) => c.id === state.cineId);
@@ -609,19 +632,64 @@ function buildRatios() {
 function buildPhones() {
   const sel = $("#phone");
   sel.innerHTML = "";
-  Object.entries(PHONES).forEach(([id, p]) => {
+  const groupLabel = { iOS: "iPhone (iOS)", Android: "Android" };
+  let group = null, og = null;
+  PHONES.forEach((p) => {
+    if (p.os !== group) {
+      group = p.os;
+      og = document.createElement("optgroup");
+      og.label = groupLabel[group] || group;
+      sel.appendChild(og);
+    }
     const o = document.createElement("option");
-    o.value = id; o.textContent = p.name;
-    sel.appendChild(o);
+    o.value = p.id; o.textContent = p.name;
+    og.appendChild(o);
   });
   sel.value = state.phoneId;
-  sel.onchange = () => {
-    state.phoneId = sel.value;
-    // reelegir una lente válida del nuevo modelo que además exista físicamente
-    const order = ["uw", "wide", "tele"];
-    const t = order.find((x) => camById(x) && deviceForType(x)) || phone().cams[0].id;
-    selectCam(t);
-  };
+  sel.onchange = () => { state.phoneId = sel.value; applyPhone(); };
+}
+function applyPhone() {
+  // reelegir una lente válida del modelo actual que además exista físicamente
+  const order = ["uw", "wide", "tele"];
+  const t = order.find((x) => camById(x) && deviceForType(x)) || (phone().cams[0] && phone().cams[0].id);
+  if (t) selectCam(t);
+  buildCamRows();
+  render();
+}
+
+async function detectPhone() {
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const banner = $("#phoneDetect");
+  let model = null;
+
+  if (isAndroid && navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+    try { model = (await navigator.userAgentData.getHighEntropyValues(["model"])).model || null; }
+    catch (e) { /* sin permiso de client hints */ }
+  }
+  if (isAndroid && !model) {
+    const m = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|[;)])/i);
+    if (m) model = m[1].trim();
+  }
+
+  if (isAndroid) {
+    const probe = ((model || "") + " " + ua).toLowerCase();
+    const hit = PHONES.find((p) => p.os === "Android" && p.match &&
+      p.match.some((s) => probe.includes(s.toLowerCase())));
+    if (hit) {
+      state.phoneId = hit.id; $("#phone").value = hit.id; applyPhone();
+      banner.textContent = "📱 Android detectado: " + (model || "modelo") + " → " + hit.name;
+    } else {
+      banner.textContent = "📱 Android detectado" + (model ? " (" + model + ")" : "") +
+        " — no está en el catálogo; elige el tuyo o un genérico.";
+    }
+  } else if (isIOS) {
+    banner.textContent = "📱 iPhone detectado. iOS no deja leer el modelo por web — elígelo abajo.";
+  } else {
+    banner.textContent = "💻 Escritorio — elige el móvil cuyo FOV quieres simular.";
+  }
 }
 function buildCamRows() {
   const body = $("#camrows");
@@ -731,5 +799,6 @@ buildCamRows();
 buildCine();
 buildLenses();
 render();
+detectPhone();
 initCamera();
 </script>
