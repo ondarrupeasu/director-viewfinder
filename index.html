@@ -539,7 +539,9 @@ const LENS_SETS = [
   { id: "canon-50",     g: "Mis ópticas (Tartanga)", name: "Canon EF 50 f/1.2",           focals: [50], fstop: 1.2 },
   { id: "canon-100",    g: "Mis ópticas (Tartanga)", name: "Canon EF 100 macro f/2.8",    focals: [100], fstop: 2.8 },
   { id: "tokina-1116",  g: "Mis ópticas (Tartanga)", name: "Tokina 11–16 f/2.8",          zoom: [11,16], fstop: 2.8 },
+  { id: "pana-1235",    g: "Mis ópticas (Tartanga)", name: "Panasonic 12–35 f/2.8",       zoom: [12,35], fstop: 2.8 },
   { id: "pana-35100",   g: "Mis ópticas (Tartanga)", name: "Panasonic 35–100 f/2.8",      zoom: [35,100], fstop: 2.8 },
+  { id: "voigt-105",    g: "Mis ópticas (Tartanga)", name: "Voigtländer Nokton 10.5 f/0.95", focals: [10.5], fstop: 0.95 },
   // ---- Genéricos ----
   { id: "primes-cine",   g: "Prime (esférico)", name: "Cine primes (juego típico)", focals: [14,18,21,25,32,35,40,50,65,75,85,100,135] },
   { id: "primes-wide",   g: "Prime (esférico)", name: "Angulares 12–35",            focals: [12,14,16,18,21,25,28,35] },
@@ -593,6 +595,7 @@ const $ = (s) => document.querySelector(s);
 const rad = (d) => (d * Math.PI) / 180;
 const deg = (r) => (r * 180) / Math.PI;
 const fovFromEq = (eq) => deg(2 * Math.atan(36 / (2 * eq)));
+const fmtFocal = (f) => Number.isInteger(f) ? String(f) : f.toFixed(1);
 
 function phone() { return PHONES.find((p) => p.id === state.phoneId) || PHONES[0]; }
 function camById(id) { return phone().cams.find((x) => x.id === id) || null; }
@@ -746,7 +749,7 @@ function applyCrop() {
 function updateReadout() {
   const cine = CINE.find((c) => c.id === state.cineId);
   const sq = state.squeeze !== 1 ? " · ×" + state.squeeze : "";
-  $("#ro-target").textContent = cine.name.split(" (")[0] + " · " + Math.round(state.focal) + "mm" + sq;
+  $("#ro-target").textContent = cine.name.split(" (")[0] + " · " + fmtFocal(state.focal) + "mm" + sq;
   $("#ro-fov").textContent = targetHFov().toFixed(0) + "°";
 }
 function render() { layoutMask(); applyCrop(); updateReadout(); buildCamRows(); buildBreakdown(); }
@@ -874,7 +877,7 @@ function buildBreakdown() {
     : "";
   let html = "";
   html += "<div><b>Cámara:</b> " + cine.name.split(" (")[0] + " · sensor " + cine.sw.toFixed(1) + " mm</div>";
-  html += "<div><b>Óptica:</b> " + Math.round(state.focal) + " mm" + sq + redTxt + " → campo <b>" + tFov.toFixed(0) + "°</b> (horizontal)</div>";
+  html += "<div><b>Óptica:</b> " + fmtFocal(state.focal) + " mm" + sq + redTxt + " → campo <b>" + tFov.toFixed(0) + "°</b> (horizontal)</div>";
   if (red !== 1) {
     const stops = Math.round(2 * Math.log2(1 / red) * 10) / 10;   // 0.71×≈1 paso, 0.64×≈1.3
     const paso = stops === 1 ? "paso" : "pasos";
@@ -962,6 +965,13 @@ function applyLens(id) {
     if (state.focal < L.zoom[0] || state.focal > L.zoom[1]) { state.focal = L.zoom[0]; inp.value = state.focal; }
   } else {
     inp.min = 4; inp.max = 1000;
+    const fs = L.focals || [];
+    if (fs.length === 1) {
+      state.focal = fs[0]; inp.value = state.focal;                       // fijo: autoselecciona
+    } else if (fs.length && (state.focal < fs[0] || state.focal > fs[fs.length - 1])) {
+      state.focal = fs.reduce((a, b) => Math.abs(b - state.focal) < Math.abs(a - state.focal) ? b : a);
+      inp.value = state.focal;                                            // fuera de rango: al más cercano
+    }
   }
   $("#lensNote").textContent = (state.squeeze !== 1)
     ? "Anamórfico ×" + state.squeeze + ": ensancha el campo horizontal (la marca no cambia el encuadre; el squeeze sí)."
@@ -1061,7 +1071,7 @@ function captureStill() {
   const red = reducerFactor();
   const redTxt = red !== 1 ? " + SB ×" + red + "→" + effFocal().toFixed(1).replace(/\.0$/, "") + "mm" : "";
   const sq = state.squeeze !== 1 ? " ×" + state.squeeze + " ana" : "";
-  const L1 = cine.name.split(" (")[0] + " · " + Math.round(state.focal) + "mm" + sq + redTxt + " · " + ratio.label;
+  const L1 = cine.name.split(" (")[0] + " · " + fmtFocal(state.focal) + "mm" + sq + redTxt + " · " + ratio.label;
   const L2 = "FOV " + targetHFov().toFixed(0) + "° H · " + (cam ? phone().name + " / " + cam.label : phone().name) + " · " + nowLabel();
 
   const pad = Math.round(barH * 0.24);
