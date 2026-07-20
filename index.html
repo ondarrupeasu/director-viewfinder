@@ -147,6 +147,18 @@
     -webkit-backdrop-filter: blur(12px);
   }
   button:active { transform: scale(0.96); }
+  #shot { font-size: 18px; padding: 9px 15px; }
+
+  #flash {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+    transition: opacity 0.25s;
+  }
+  #flash.on { opacity: 0.8; transition: none; }
 
   /* ---- Panel de setup ---- */
   #panel {
@@ -333,8 +345,11 @@
 
 <div id="hud">
   <div class="pill" id="readout"><span id="ro-target">—</span> · <b id="ro-fov">—°</b></div>
+  <button id="shot" aria-label="Capturar encuadre" title="Capturar encuadre">📷</button>
   <button id="open">⚙︎ Ajustes</button>
 </div>
+
+<div id="flash"></div>
 
 <div id="panel" class="show">
   <div class="sheet">
@@ -987,6 +1002,94 @@ function reveal() {
 }
 $("#close").onclick = reveal;
 $("#open").onclick = () => { $("#panel").classList.add("show"); updateOrientation(); };
+
+/* ============================================================
+   Captura de encuadre (foto de referencia)
+   ============================================================ */
+function stamp2(n) { return String(n).padStart(2, "0"); }
+function nowLabel() {
+  const d = new Date();
+  return d.getFullYear() + "-" + stamp2(d.getMonth() + 1) + "-" + stamp2(d.getDate()) +
+    " " + stamp2(d.getHours()) + ":" + stamp2(d.getMinutes());
+}
+function nowFile() {
+  const d = new Date();
+  return d.getFullYear() + stamp2(d.getMonth() + 1) + stamp2(d.getDate()) +
+    "_" + stamp2(d.getHours()) + stamp2(d.getMinutes()) + stamp2(d.getSeconds());
+}
+function flash() {
+  const f = $("#flash");
+  f.classList.add("on");
+  setTimeout(() => f.classList.remove("on"), 60);
+}
+
+function captureStill() {
+  const video = $("#cam");
+  if (!video.videoWidth || !video.classList.contains("live")) return;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const stage = $("#stage").getBoundingClientRect();
+
+  // rectángulo de la máscara (misma lógica que layoutMask)
+  const ratio = RATIOS.find((x) => x.id === state.ratioId);
+  let mW = stage.width, mH = mW / ratio.r;
+  if (mH > stage.height) { mH = stage.height; mW = mH * ratio.r; }
+
+  // mapa pantalla → píxeles de vídeo (cover-fit centrado · zoom digital)
+  const coverScale = Math.max(stage.width / vw, stage.height / vh);
+  const total = coverScale * Math.max(cropScale(), 1);
+  let sW = Math.min(mW / total, vw), sH = Math.min(mH / total, vh);
+  const sx = Math.max(0, (vw - sW) / 2), sy = Math.max(0, (vh - sH) / 2);
+
+  const outW = Math.min(Math.round(sW), 2560);
+  const k = outW / sW;
+  const frameH = Math.round(sH * k);
+  const barH = Math.round(Math.max(46, outW * 0.055));
+
+  const cv = document.createElement("canvas");
+  cv.width = outW; cv.height = frameH + barH;
+  const ctx = cv.getContext("2d");
+  ctx.drawImage(video, sx, sy, sW, sH, 0, 0, outW, frameH);
+
+  // franja de datos
+  ctx.fillStyle = "#0a0a0b";
+  ctx.fillRect(0, frameH, outW, barH);
+  ctx.fillStyle = "#ff5a52";
+  ctx.fillRect(0, frameH, outW, Math.max(2, Math.round(barH * 0.045)));
+
+  const cine = CINE.find((c) => c.id === state.cineId);
+  const cam = camById(state.camId);
+  const red = reducerFactor();
+  const redTxt = red !== 1 ? " + SB ×" + red + "→" + effFocal().toFixed(1).replace(/\.0$/, "") + "mm" : "";
+  const sq = state.squeeze !== 1 ? " ×" + state.squeeze + " ana" : "";
+  const L1 = cine.name.split(" (")[0] + " · " + Math.round(state.focal) + "mm" + sq + redTxt + " · " + ratio.label;
+  const L2 = "FOV " + targetHFov().toFixed(0) + "° H · " + (cam ? phone().name + " / " + cam.label : phone().name) + " · " + nowLabel();
+
+  const pad = Math.round(barH * 0.24);
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "600 " + Math.round(barH * 0.30) + "px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText(L1, pad, frameH + barH * 0.36, outW - pad * 2);
+  ctx.fillStyle = "#b9b9bd";
+  ctx.font = "400 " + Math.round(barH * 0.26) + "px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText(L2, pad, frameH + barH * 0.70, outW - pad * 2);
+
+  flash();
+  const filename = "viewfinder_" + Math.round(state.focal) + "mm_" + nowFile() + ".jpg";
+  cv.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], filename, { type: "image/jpeg" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }, "image/jpeg", 0.92);
+}
+$("#shot").onclick = captureStill;
 
 /* En móvil, el visor de cine exige apaisado (el sensor y la matemática del FOV
    asumen horizontal). iOS no deja forzar la orientación por web → detectamos
