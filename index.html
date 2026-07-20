@@ -5,6 +5,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Viewfinder">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Visor de director</title>
 <style>
   :root {
@@ -152,6 +153,13 @@
   }
   button:active { transform: scale(0.96); }
   #shot { font-size: 18px; padding: 9px 15px; }
+  #calpill { gap: 4px; padding: 8px 10px; }
+  .calbtn {
+    background: none; border: none; color: var(--txt);
+    font-size: 19px; line-height: 1; padding: 0 8px; min-width: 0;
+  }
+  #calVal { min-width: 40px; text-align: center; font-size: 13px; }
+  #calVal.on { color: var(--accent); font-weight: 700; }
 
   #flash {
     position: fixed;
@@ -349,6 +357,11 @@
 
 <div id="hud">
   <div class="pill" id="readout"><span id="ro-target">—</span> · <b id="ro-fov">—°</b></div>
+  <div class="pill" id="calpill" title="Calibración fina: iguala el visor a tu cámara (se guarda por móvil y lente)">
+    <button class="calbtn" id="calWide" aria-label="Abrir encuadre" title="Más ancho">−</button>
+    <span id="calVal">cal</span>
+    <button class="calbtn" id="calTight" aria-label="Cerrar encuadre" title="Más cerrado">+</button>
+  </div>
   <button id="shot" aria-label="Capturar encuadre" title="Capturar encuadre">📷</button>
   <button id="open">⚙︎ Ajustes</button>
 </div>
@@ -591,6 +604,7 @@ const state = {
   squeeze: 1,         // >1 = anamórfico
   focal: 35,
   ratioId: "2.39",
+  calib: {},          // corrección fina de FOV por "phoneId:camId" (persistida)
 };
 
 let backCams = [];    // lentes físicas detectadas: {deviceId, label, type}
@@ -620,12 +634,37 @@ function currentLens() { return LENS_SETS.find((L) => L.id === state.lensId); }
 function lensPresets(L) {
   return L.zoom ? [L.zoom[0], Math.round((L.zoom[0] + L.zoom[1]) / 2), L.zoom[1]] : (L.focals || []);
 }
-function captureHFov() {
+function baseFovForCam() {
   const cam = camById(state.camId);
   return cam ? fovFromEq(cam.eq) : 70;
 }
+/* Calibración fina: multiplica tan(FOV/2) de la lente del móvil, por móvil+lente. */
+function calibKey() { return state.phoneId + ":" + (state.camId || "?"); }
+function calibVal() { return state.calib[calibKey()] || 1; }
+function captureTan() { return Math.tan(rad(baseFovForCam() / 2)) * calibVal(); }
+function captureHFov() { return deg(2 * Math.atan(captureTan())); }   // ya calibrado
 function cropScale() {
-  return Math.tan(rad(captureHFov() / 2)) / Math.tan(rad(targetHFov() / 2));
+  return captureTan() / Math.tan(rad(targetHFov() / 2));
+}
+function loadCalib() {
+  try { state.calib = JSON.parse(localStorage.getItem("vf_calib") || "{}") || {}; }
+  catch (e) { state.calib = {}; }
+}
+function saveCalib() {
+  try { localStorage.setItem("vf_calib", JSON.stringify(state.calib)); } catch (e) {}
+}
+function adjustCalib(mult) {
+  const k = calibKey();
+  let v = (state.calib[k] || 1) * mult;
+  v = Math.max(0.55, Math.min(1.7, v));
+  if (Math.abs(v - 1) < 0.004) delete state.calib[k]; else state.calib[k] = v;
+  saveCalib(); render();
+}
+function resetCalib() { delete state.calib[calibKey()]; saveCalib(); render(); }
+function updateCalPill() {
+  const v = calibVal(), el = $("#calVal");
+  if (Math.abs(v - 1) < 0.004) { el.textContent = "cal"; el.classList.remove("on"); }
+  else { const pct = Math.round((v - 1) * 100); el.textContent = (pct > 0 ? "+" : "") + pct + "%"; el.classList.add("on"); }
 }
 
 /* ============================================================
@@ -758,7 +797,7 @@ function updateReadout() {
   $("#ro-target").textContent = cine.name.split(" (")[0] + " · " + fmtFocal(state.focal) + "mm" + sq;
   $("#ro-fov").textContent = targetHFov().toFixed(0) + "°";
 }
-function render() { layoutMask(); applyCrop(); updateReadout(); buildCamRows(); buildBreakdown(); }
+function render() { layoutMask(); applyCrop(); updateReadout(); buildCamRows(); buildBreakdown(); updateCalPill(); }
 
 /* ============================================================
    UI
@@ -893,7 +932,8 @@ function buildBreakdown() {
   }
   if (cam) {
     const s = cropScale();
-    html += "<div><b>Tu móvil:</b> " + phone().name + " · " + cam.label + " " + fovFromEq(cam.eq).toFixed(0) + "°</div>";
+    const calTxt = Math.abs(calibVal() - 1) >= 0.004 ? " (cal " + captureHFov().toFixed(0) + "°)" : "";
+    html += "<div><b>Tu móvil:</b> " + phone().name + " · " + cam.label + " " + fovFromEq(cam.eq).toFixed(0) + "°" + calTxt + "</div>";
     if (s >= 1) {
       el.classList.remove("warn");
       html += "<div class='res'><b>Conversión:</b> recorte ×" + s.toFixed(2) + " (zoom digital) → encuadre fiel ✓</div>";
@@ -1106,6 +1146,9 @@ function captureStill() {
   }, "image/jpeg", 0.92);
 }
 $("#shot").onclick = captureStill;
+$("#calWide").onclick = () => adjustCalib(1 / 1.03);   // menos recorte → más ancho
+$("#calTight").onclick = () => adjustCalib(1.03);      // más recorte → más cerrado
+$("#calVal").onclick = resetCalib;                     // tocar el valor lo resetea
 
 /* En móvil, el visor de cine exige apaisado (el sensor y la matemática del FOV
    asumen horizontal). iOS no deja forzar la orientación por web → detectamos
@@ -1137,6 +1180,7 @@ function isMobileOrTablet() {
   return iOS || android || touch;
 }
 
+loadCalib();
 buildRatios();
 buildPhones();
 buildCamRows();
