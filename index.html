@@ -264,6 +264,34 @@
   .done:disabled { opacity: 0.5; }
   .note { font-size: 12px; color: var(--txt-dim); margin-top: 10px; line-height: 1.5; }
   .note b { color: var(--txt); font-weight: 600; }
+
+  /* Intro + ayuda + contacto */
+  .intro {
+    font-size: 13px; line-height: 1.55; color: var(--txt-dim);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 13px 15px; margin-bottom: 14px;
+  }
+  .intro b { color: var(--txt); }
+  details.help {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 0 15px; margin-bottom: 20px; font-size: 13px;
+  }
+  details.help summary {
+    cursor: pointer; padding: 13px 0; color: var(--txt); font-weight: 600;
+    list-style: none; outline: none;
+  }
+  details.help summary::-webkit-details-marker { display: none; }
+  details.help summary::after { content: " ›"; color: var(--txt-dim); }
+  details.help[open] summary::after { content: " ⌄"; }
+  details.help[open] summary { border-bottom: 1px solid var(--line); }
+  details.help p { color: var(--txt-dim); line-height: 1.55; margin: 11px 0; }
+  details.help b { color: var(--txt); }
+  .foot {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .foot a { color: var(--accent); font-size: 13px; text-decoration: none; }
+  .foot .fnote { display: block; color: var(--txt-dim); font-size: 11px; margin-top: 6px; }
   #camStatus { font-size: 12px; margin-top: 10px; }
   #camStatus.err { color: var(--accent); }
   td .tag.warn { color: var(--accent); }
@@ -372,6 +400,18 @@
 
 <div id="panel" class="show">
   <div class="sheet">
+    <div class="intro">
+      <b>Visor de director.</b> Convierte tu móvil en un visor de campo: previsualiza el <b>encuadre</b> que daría una cámara de cine y una óptica concretas, con la máscara del formato encima. Elige tu móvil, la cámara a simular y la focal, y apunta a la escena. Pensado para usarse <b>desde el móvil o tablet</b> (usa su cámara).
+    </div>
+
+    <details class="help">
+      <summary>📲 Añádelo a la pantalla de inicio (recomendado)</summary>
+      <p>Así se abre a <b>pantalla completa</b>, sin las barras del navegador:</p>
+      <p><b>iPhone (Safari):</b> pulsa el botón <b>Compartir</b> (el cuadro con la flecha ↑) y elige <b>«Añadir a pantalla de inicio»</b>.</p>
+      <p><b>Android (Chrome):</b> abre el menú <b>⋮</b> (arriba a la derecha) y elige <b>«Añadir a pantalla de inicio»</b> o <b>«Instalar aplicación»</b>.</p>
+      <p>¿Lo abres desde el icono y <b>aún ves las barras</b> del navegador? Bórralo del inicio y vuelve a añadirlo: el móvil guarda la versión antigua en caché.</p>
+    </details>
+
     <h1>Configurar el visor</h1>
     <div class="sub">El móvil es el proxy. Elige con qué lente captura y qué cámara/óptica de cine quieres simular.</div>
 
@@ -421,6 +461,11 @@
     <div id="breakdown"></div>
 
     <button class="done" id="close">Ver encuadre</button>
+
+    <div class="foot">
+      <a id="contact">✉︎ Sugerir una cámara u óptica · enviar consulta</a>
+      <span class="fnote">¿Falta tu cámara o tu óptica? ¿Una corrección o propuesta? Escríbenos.</span>
+    </div>
   </div>
 </div>
 
@@ -1072,6 +1117,15 @@ function reveal() {
 }
 $("#close").onclick = reveal;
 $("#open").onclick = () => { $("#panel").classList.add("show"); updateOrientation(); };
+
+/* Contacto: sugerencias de cámaras/ópticas, correcciones o consultas */
+$("#contact").href = "mailto:info@cinemafilmak.com" +
+  "?subject=" + encodeURIComponent("Visor de director — sugerencia / consulta") +
+  "&body=" + encodeURIComponent(
+    "Hola,\n\n" +
+    "(Escribe tu consulta o corrección, o la cámara/óptica que te gustaría que añadiéramos — marca y modelo.)\n\n" +
+    "Gracias."
+  );
 
 /* ============================================================
    Captura de encuadre (foto de referencia)
