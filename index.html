@@ -468,102 +468,111 @@ function c(id, eq) {
   return { id, label, eq };
 }
 
-/* Cámaras a simular: ancho de sensor (mm) → FOV objetivo. Agrupadas por formato.
+/* Cámaras a simular: ancho de sensor (mm) → FOV objetivo. Agrupadas por MARCA
+   (para buscar rápido en el móvil). El formato (S35/FF/M4/3…) va en el nombre.
    sw = ancho útil del sensor a fotograma completo. Las de cine llevan su ancho
-   específico; las foto/híbridas usan el ancho estándar de su formato (las
-   diferencias entre marcas son <1% y no se ven). Algunas híbridas recortan en
-   ciertos modos de vídeo (p.ej. 4K60 en Super35) — el recorte por modo llega en F2. */
+   específico; las foto/híbridas usan el ancho estándar de su formato. Algunas
+   híbridas recortan en vídeo (p.ej. 4K60 en Super35) — el recorte por modo llega en F2. */
 const CINE = [
-  // ---- Cine ----
-  { id: "alexa35",   g: "Cine", name: "ARRI Alexa 35 (S35)",            sw: 27.99 },
-  { id: "alexamini", g: "Cine", name: "ARRI Alexa Mini (S35)",          sw: 28.25 },
-  { id: "amira",     g: "Cine", name: "ARRI Amira (S35)",               sw: 28.25 },
-  { id: "alexaminilf", g: "Cine", name: "ARRI Alexa Mini LF (LF)",      sw: 36.70 },
-  { id: "alexalf",   g: "Cine", name: "ARRI Alexa LF (LF)",             sw: 36.70 },
-  { id: "alexa65",   g: "Cine", name: "ARRI Alexa 65 (65 mm)",          sw: 54.12 },
-  { id: "komodo",    g: "Cine", name: "RED Komodo 6K (S35)",            sw: 27.03 },
-  { id: "komodox",   g: "Cine", name: "RED Komodo-X 6K (S35)",          sw: 27.03 },
-  { id: "vraptor",   g: "Cine", name: "RED V-Raptor 8K (VV/FF)",        sw: 40.96 },
-  { id: "monstro",   g: "Cine", name: "RED Monstro 8K (VV)",            sw: 40.96 },
-  { id: "helium",    g: "Cine", name: "RED Helium 8K (S35)",            sw: 29.90 },
-  { id: "gemini",    g: "Cine", name: "RED Gemini 5K (S35)",            sw: 30.72 },
-  { id: "venice",    g: "Cine", name: "Sony Venice (FF)",               sw: 36.20 },
-  { id: "venice2",   g: "Cine", name: "Sony Venice 2 (FF)",             sw: 35.90 },
-  { id: "burano",    g: "Cine", name: "Sony Burano (FF)",               sw: 35.90 },
-  { id: "fx9",       g: "Cine", name: "Sony FX9 (FF)",                  sw: 35.70 },
-  { id: "fx6",       g: "Cine", name: "Sony FX6 (FF)",                  sw: 35.60 },
-  { id: "fx3",       g: "Cine", name: "Sony FX3 (FF)",                  sw: 35.60 },
-  { id: "fx30",      g: "Cine", name: "Sony FX30 (S35)",               sw: 23.30 },
-  { id: "c70",       g: "Cine", name: "Canon EOS C70 (S35)",            sw: 26.20 },
-  { id: "c300iii",   g: "Cine", name: "Canon C300 Mark III (S35)",      sw: 26.20 },
-  { id: "c500ii",    g: "Cine", name: "Canon C500 Mark II (FF)",        sw: 38.10 },
-  { id: "c400",      g: "Cine", name: "Canon C400 (FF)",                sw: 38.10 },
-  { id: "r5c",       g: "Cine", name: "Canon EOS R5 C (FF)",            sw: 36.00 },
-  { id: "ursacine",  g: "Cine", name: "Blackmagic URSA Cine 12K (LF)",  sw: 36.00 },
-  { id: "ursa12k",   g: "Cine", name: "Blackmagic URSA Mini Pro 12K (S35)", sw: 27.03 },
-  { id: "bmpcc6k",   g: "Cine", name: "Blackmagic Pocket 6K (S35)",     sw: 23.10 },
-  { id: "bmpcc4k",   g: "Cine", name: "Blackmagic Pocket 4K (M4/3)",    sw: 18.96 },
-  { id: "eva1",      g: "Cine", name: "Panasonic EVA1 (S35)",           sw: 24.60 },
-  { id: "ronin4d6k", g: "Cine", name: "DJI Ronin 4D 6K (S35)",          sw: 26.70 },
-  { id: "ronin4d8k", g: "Cine", name: "DJI Ronin 4D 8K (FF)",           sw: 36.00 },
-  { id: "mavoedge8k", g: "Cine", name: "Kinefinity MAVO Edge 8K (FF)",  sw: 35.70 },
-  { id: "mavoedge6k", g: "Cine", name: "Kinefinity MAVO Edge 6K (S35)", sw: 27.80 },
-  // ---- Full Frame (foto/híbrida) ----
-  { id: "a7iv",   g: "Full Frame", name: "Sony α7 IV",            sw: 35.90 },
-  { id: "a7iii",  g: "Full Frame", name: "Sony α7 III",           sw: 35.90 },
-  { id: "a7siii", g: "Full Frame", name: "Sony α7S III",          sw: 35.90 },
-  { id: "a7rv",   g: "Full Frame", name: "Sony α7R V",            sw: 35.90 },
-  { id: "a1",     g: "Full Frame", name: "Sony α1",               sw: 35.90 },
-  { id: "a9iii",  g: "Full Frame", name: "Sony α9 III",           sw: 35.90 },
-  { id: "r5",     g: "Full Frame", name: "Canon EOS R5",          sw: 36.00 },
-  { id: "r5ii",   g: "Full Frame", name: "Canon EOS R5 Mark II",  sw: 36.00 },
-  { id: "r6ii",   g: "Full Frame", name: "Canon EOS R6 Mark II",  sw: 36.00 },
-  { id: "z8",     g: "Full Frame", name: "Nikon Z8",              sw: 35.90 },
-  { id: "z9",     g: "Full Frame", name: "Nikon Z9",              sw: 35.90 },
-  { id: "z6iii",  g: "Full Frame", name: "Nikon Z6 III",          sw: 35.90 },
-  { id: "s5ii",   g: "Full Frame", name: "Panasonic Lumix S5 II", sw: 35.60 },
-  { id: "s1h",    g: "Full Frame", name: "Panasonic Lumix S1H",   sw: 35.60 },
-  { id: "s9",     g: "Full Frame", name: "Panasonic Lumix S9",    sw: 35.60 },
-  { id: "sl3",    g: "Full Frame", name: "Leica SL3",             sw: 36.00 },
-  { id: "fp",     g: "Full Frame", name: "Sigma fp",              sw: 35.90 },
-  { id: "ff",     g: "Full Frame", name: "Genérico Full Frame 36 mm", sw: 36.00 },
-  // ---- APS-C (foto/híbrida) ----
-  { id: "a6700", g: "APS-C", name: "Sony α6700",            sw: 23.50 },
-  { id: "a6600", g: "APS-C", name: "Sony α6600",            sw: 23.50 },
-  { id: "a6400", g: "APS-C", name: "Sony α6400",            sw: 23.50 },
-  { id: "xh2s",  g: "APS-C", name: "Fujifilm X-H2S",        sw: 23.50 },
-  { id: "xt5",   g: "APS-C", name: "Fujifilm X-T5",         sw: 23.50 },
-  { id: "xs20",  g: "APS-C", name: "Fujifilm X-S20",        sw: 23.50 },
-  { id: "r7",    g: "APS-C", name: "Canon EOS R7",          sw: 22.30 },
-  { id: "r50",   g: "APS-C", name: "Canon EOS R50",         sw: 22.30 },
-  { id: "z50ii", g: "APS-C", name: "Nikon Z50 II",          sw: 23.50 },
-  { id: "apsc",  g: "APS-C", name: "Genérico APS-C (Sony/Nikon/Fuji)", sw: 23.50 },
-  { id: "apscc", g: "APS-C", name: "Genérico APS-C (Canon)", sw: 22.30 },
-  // ---- Micro 4/3 (foto/híbrida) ----
-  { id: "gh7",  g: "Micro 4/3", name: "Panasonic Lumix GH7",         sw: 17.30 },
-  { id: "gh6",  g: "Micro 4/3", name: "Panasonic Lumix GH6",         sw: 17.30 },
-  { id: "gh5",  g: "Micro 4/3", name: "Panasonic Lumix GH5 / GH5 II", sw: 17.30 },
-  { id: "gh4",  g: "Micro 4/3", name: "Panasonic Lumix GH4",         sw: 17.30 },
-  { id: "g9ii", g: "Micro 4/3", name: "Panasonic Lumix G9 II",       sw: 17.30 },
-  { id: "bgh1", g: "Micro 4/3", name: "Panasonic BGH1",              sw: 17.30 },
-  { id: "om1",  g: "Micro 4/3", name: "OM System OM-1",              sw: 17.40 },
-  { id: "m43",  g: "Micro 4/3", name: "Genérico Micro 4/3",          sw: 17.30 },
-  // ---- Otros ----
-  { id: "s16",  g: "Otros", name: "Super 16",  sw: 12.52 },
+  // ---- ARRI ----
+  { id: "alexa35",   g: "ARRI", name: "ARRI Alexa 35 (S35)",            sw: 27.99 },
+  { id: "alexamini", g: "ARRI", name: "ARRI Alexa Mini (S35)",          sw: 28.25 },
+  { id: "amira",     g: "ARRI", name: "ARRI Amira (S35)",               sw: 28.25 },
+  { id: "alexaminilf", g: "ARRI", name: "ARRI Alexa Mini LF (LF)",      sw: 36.70 },
+  { id: "alexalf",   g: "ARRI", name: "ARRI Alexa LF (LF)",             sw: 36.70 },
+  { id: "alexa65",   g: "ARRI", name: "ARRI Alexa 65 (65 mm)",          sw: 54.12 },
+  // ---- RED ----
+  { id: "komodo",    g: "RED", name: "RED Komodo 6K (S35)",             sw: 27.03 },
+  { id: "komodox",   g: "RED", name: "RED Komodo-X 6K (S35)",           sw: 27.03 },
+  { id: "vraptor",   g: "RED", name: "RED V-Raptor 8K (VV/FF)",         sw: 40.96 },
+  { id: "monstro",   g: "RED", name: "RED Monstro 8K (VV)",             sw: 40.96 },
+  { id: "helium",    g: "RED", name: "RED Helium 8K (S35)",             sw: 29.90 },
+  { id: "gemini",    g: "RED", name: "RED Gemini 5K (S35)",             sw: 30.72 },
+  // ---- Sony ----
+  { id: "venice",    g: "Sony", name: "Sony Venice (FF)",              sw: 36.20 },
+  { id: "venice2",   g: "Sony", name: "Sony Venice 2 (FF)",            sw: 35.90 },
+  { id: "burano",    g: "Sony", name: "Sony Burano (FF)",              sw: 35.90 },
+  { id: "fx9",       g: "Sony", name: "Sony FX9 (FF)",                 sw: 35.70 },
+  { id: "fx6",       g: "Sony", name: "Sony FX6 (FF)",                 sw: 35.60 },
+  { id: "fx3",       g: "Sony", name: "Sony FX3 (FF)",                 sw: 35.60 },
+  { id: "fx30",      g: "Sony", name: "Sony FX30 (S35)",               sw: 23.30 },
+  { id: "a7iv",      g: "Sony", name: "Sony α7 IV (FF)",               sw: 35.90 },
+  { id: "a7iii",     g: "Sony", name: "Sony α7 III (FF)",              sw: 35.90 },
+  { id: "a7siii",    g: "Sony", name: "Sony α7S III (FF)",             sw: 35.90 },
+  { id: "a7rv",      g: "Sony", name: "Sony α7R V (FF)",               sw: 35.90 },
+  { id: "a1",        g: "Sony", name: "Sony α1 (FF)",                  sw: 35.90 },
+  { id: "a9iii",     g: "Sony", name: "Sony α9 III (FF)",              sw: 35.90 },
+  { id: "a6700",     g: "Sony", name: "Sony α6700 (APS-C)",            sw: 23.50 },
+  { id: "a6600",     g: "Sony", name: "Sony α6600 (APS-C)",            sw: 23.50 },
+  { id: "a6400",     g: "Sony", name: "Sony α6400 (APS-C)",            sw: 23.50 },
+  // ---- Canon ----
+  { id: "c70",       g: "Canon", name: "Canon EOS C70 (S35)",          sw: 26.20 },
+  { id: "c300iii",   g: "Canon", name: "Canon C300 Mark III (S35)",    sw: 26.20 },
+  { id: "c500ii",    g: "Canon", name: "Canon C500 Mark II (FF)",      sw: 38.10 },
+  { id: "c400",      g: "Canon", name: "Canon C400 (FF)",              sw: 38.10 },
+  { id: "r5c",       g: "Canon", name: "Canon EOS R5 C (FF)",          sw: 36.00 },
+  { id: "r5",        g: "Canon", name: "Canon EOS R5 (FF)",            sw: 36.00 },
+  { id: "r5ii",      g: "Canon", name: "Canon EOS R5 Mark II (FF)",    sw: 36.00 },
+  { id: "r6ii",      g: "Canon", name: "Canon EOS R6 Mark II (FF)",    sw: 36.00 },
+  { id: "r7",        g: "Canon", name: "Canon EOS R7 (APS-C)",         sw: 22.30 },
+  { id: "r50",       g: "Canon", name: "Canon EOS R50 (APS-C)",        sw: 22.30 },
+  // ---- Blackmagic ----
+  { id: "ursacine",  g: "Blackmagic", name: "Blackmagic URSA Cine 12K (LF)",  sw: 36.00 },
+  { id: "ursa12k",   g: "Blackmagic", name: "Blackmagic URSA Mini Pro 12K (S35)", sw: 27.03 },
+  { id: "bmpcc6k",   g: "Blackmagic", name: "Blackmagic Pocket 6K (S35)",     sw: 23.10 },
+  { id: "bmpcc4k",   g: "Blackmagic", name: "Blackmagic Pocket 4K (M4/3)",    sw: 18.96 },
+  // ---- Panasonic ----
+  { id: "eva1",      g: "Panasonic", name: "Panasonic EVA1 (S35)",           sw: 24.60 },
+  { id: "s5ii",      g: "Panasonic", name: "Panasonic Lumix S5 II (FF)",     sw: 35.60 },
+  { id: "s1h",       g: "Panasonic", name: "Panasonic Lumix S1H (FF)",       sw: 35.60 },
+  { id: "s9",        g: "Panasonic", name: "Panasonic Lumix S9 (FF)",        sw: 35.60 },
+  { id: "gh7",       g: "Panasonic", name: "Panasonic Lumix GH7 (M4/3)",     sw: 17.30 },
+  { id: "gh6",       g: "Panasonic", name: "Panasonic Lumix GH6 (M4/3)",     sw: 17.30 },
+  { id: "gh5",       g: "Panasonic", name: "Panasonic Lumix GH5 / GH5 II (M4/3)", sw: 17.30 },
+  { id: "gh4",       g: "Panasonic", name: "Panasonic Lumix GH4 (M4/3)",     sw: 17.30 },
+  { id: "g9ii",      g: "Panasonic", name: "Panasonic Lumix G9 II (M4/3)",   sw: 17.30 },
+  { id: "bgh1",      g: "Panasonic", name: "Panasonic BGH1 (M4/3)",          sw: 17.30 },
+  // ---- Nikon ----
+  { id: "z8",        g: "Nikon", name: "Nikon Z8 (FF)",                sw: 35.90 },
+  { id: "z9",        g: "Nikon", name: "Nikon Z9 (FF)",                sw: 35.90 },
+  { id: "z6iii",     g: "Nikon", name: "Nikon Z6 III (FF)",            sw: 35.90 },
+  { id: "z50ii",     g: "Nikon", name: "Nikon Z50 II (APS-C)",         sw: 23.50 },
+  // ---- Fujifilm ----
+  { id: "xh2s",      g: "Fujifilm", name: "Fujifilm X-H2S (APS-C)",    sw: 23.50 },
+  { id: "xt5",       g: "Fujifilm", name: "Fujifilm X-T5 (APS-C)",     sw: 23.50 },
+  { id: "xs20",      g: "Fujifilm", name: "Fujifilm X-S20 (APS-C)",    sw: 23.50 },
+  // ---- DJI ----
+  { id: "ronin4d6k", g: "DJI", name: "DJI Ronin 4D 6K (S35)",          sw: 26.70 },
+  { id: "ronin4d8k", g: "DJI", name: "DJI Ronin 4D 8K (FF)",           sw: 36.00 },
+  // ---- Kinefinity ----
+  { id: "mavoedge8k", g: "Kinefinity", name: "Kinefinity MAVO Edge 8K (FF)",  sw: 35.70 },
+  { id: "mavoedge6k", g: "Kinefinity", name: "Kinefinity MAVO Edge 6K (S35)", sw: 27.80 },
+  // ---- Leica ----
+  { id: "sl3",       g: "Leica", name: "Leica SL3 (FF)",               sw: 36.00 },
+  // ---- Sigma ----
+  { id: "fp",        g: "Sigma", name: "Sigma fp (FF)",                sw: 35.90 },
+  // ---- OM System ----
+  { id: "om1",       g: "OM System", name: "OM System OM-1 (M4/3)",    sw: 17.40 },
+  // ---- Genéricos por formato ----
+  { id: "ff",    g: "Genéricos", name: "Full Frame 36 mm",           sw: 36.00 },
+  { id: "apsc",  g: "Genéricos", name: "APS-C (Sony/Nikon/Fuji)",    sw: 23.50 },
+  { id: "apscc", g: "Genéricos", name: "APS-C (Canon)",              sw: 22.30 },
+  { id: "m43",   g: "Genéricos", name: "Micro 4/3",                  sw: 17.30 },
+  { id: "s16",   g: "Genéricos", name: "Super 16",                   sw: 12.52 },
 ];
 
 /* Juegos de óptica. La marca NO cambia el encuadre: primes/zoom solo fijan focales
    rápidas. El anamórfico SÍ (squeeze ensancha el campo horizontal → sw · squeeze). */
 const LENS_SETS = [
-  // ---- Mis ópticas (Tartanga) ----
-  { id: "canon-70200",  g: "Mis ópticas (Tartanga)", name: "Canon EF 70–200 f/2.8 IS II", zoom: [70,200], fstop: 2.8 },
-  { id: "canon-50",     g: "Mis ópticas (Tartanga)", name: "Canon EF 50 f/1.2",           focals: [50], fstop: 1.2 },
-  { id: "canon-100",    g: "Mis ópticas (Tartanga)", name: "Canon EF 100 macro f/2.8",    focals: [100], fstop: 2.8 },
-  { id: "tokina-1116",  g: "Mis ópticas (Tartanga)", name: "Tokina 11–16 f/2.8",          zoom: [11,16], fstop: 2.8 },
-  { id: "pana-1235",    g: "Mis ópticas (Tartanga)", name: "Panasonic 12–35 f/2.8",       zoom: [12,35], fstop: 2.8 },
-  { id: "pana-35100",   g: "Mis ópticas (Tartanga)", name: "Panasonic 35–100 f/2.8",      zoom: [35,100], fstop: 2.8 },
-  { id: "voigt-105",    g: "Mis ópticas (Tartanga)", name: "Voigtländer Nokton 10.5 f/0.95", focals: [10.5], fstop: 0.95 },
-  // ---- Genéricos ----
+  // ---- Mis ópticas (Tartanga), por marca ----
+  { id: "canon-70200",  g: "Canon (Tartanga)", name: "Canon EF 70–200 f/2.8 IS II", zoom: [70,200], fstop: 2.8 },
+  { id: "canon-50",     g: "Canon (Tartanga)", name: "Canon EF 50 f/1.2",           focals: [50], fstop: 1.2 },
+  { id: "canon-100",    g: "Canon (Tartanga)", name: "Canon EF 100 macro f/2.8",    focals: [100], fstop: 2.8 },
+  { id: "pana-1235",    g: "Panasonic (Tartanga)", name: "Panasonic 12–35 f/2.8",   zoom: [12,35], fstop: 2.8 },
+  { id: "pana-35100",   g: "Panasonic (Tartanga)", name: "Panasonic 35–100 f/2.8",  zoom: [35,100], fstop: 2.8 },
+  { id: "tokina-1116",  g: "Tokina (Tartanga)", name: "Tokina 11–16 f/2.8",         zoom: [11,16], fstop: 2.8 },
+  { id: "voigt-105",    g: "Voigtländer (Tartanga)", name: "Voigtländer Nokton 10.5 f/0.95", focals: [10.5], fstop: 0.95 },
+  // ---- Genéricos (juegos de focales, sin marca) ----
   { id: "primes-cine",   g: "Prime (esférico)", name: "Cine primes (juego típico)", focals: [14,18,21,25,32,35,40,50,65,75,85,100,135] },
   { id: "primes-wide",   g: "Prime (esférico)", name: "Angulares 12–35",            focals: [12,14,16,18,21,25,28,35] },
   { id: "primes-stills", g: "Prime (foto)",     name: "Fotográficos 24–135",        focals: [24,28,35,50,85,105,135] },
@@ -962,7 +971,8 @@ function buildCine() {
       sel.appendChild(og);
     }
     const o = document.createElement("option");
-    o.value = c.id; o.textContent = c.name + " · " + c.sw.toFixed(1) + " mm";
+    const label = c.name.startsWith(c.g + " ") ? c.name.slice(c.g.length + 1) : c.name;
+    o.value = c.id; o.textContent = label + " · " + c.sw.toFixed(1) + " mm";
     og.appendChild(o);
   });
   sel.value = state.cineId;
