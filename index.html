@@ -503,6 +503,7 @@ const PHONES = [
   { id: "pixel-8",   os: "Android", name: "Google Pixel 8 / 7 / 6", match: ["Pixel 8","Pixel 7","Pixel 6"], cams: [c("uw",16), c("wide",25)] },
   { id: "xiaomi-14", os: "Android", name: "Xiaomi 14", match: ["Xiaomi 14","23127"], cams: [c("uw",14), c("wide",23), c("tele",75)] },
   { id: "xiaomi-13", os: "Android", name: "Xiaomi 13", match: ["Xiaomi 13","2211133"], cams: [c("uw",15), c("wide",24), c("tele",75)] },
+  { id: "poco-x7-pro", os: "Android", name: "POCO X7 Pro", match: ["POCO X7 Pro","X7 Pro","25010PN30G","2412DPC0AG"], cams: [c("uw",15), c("wide",24)] },
   { id: "oneplus",   os: "Android", name: "OnePlus 12 / 11", match: ["OnePlus 12","OnePlus 11","CPH2581","CPH2449"], cams: [c("uw",14), c("wide",24), c("tele",64)] },
   { id: "android-3", os: "Android", name: "Android genérico (3 cámaras)", cams: [c("uw",13), c("wide",24), c("tele",70)] },
   { id: "android-2", os: "Android", name: "Android genérico (UW + Wide)", cams: [c("uw",13), c("wide",24)] },
@@ -619,6 +620,10 @@ const LENS_SETS = [
   { id: "pana-35100",   g: "Panasonic (Tartanga)", name: "Panasonic 35–100 f/2.8",  zoom: [35,100], fstop: 2.8 },
   { id: "tokina-1116",  g: "Tokina (Tartanga)", name: "Tokina 11–16 f/2.8",         zoom: [11,16], fstop: 2.8 },
   { id: "voigt-105",    g: "Voigtländer (Tartanga)", name: "Voigtländer Nokton 10.5 f/0.95", focals: [10.5], fstop: 0.95 },
+  // ---- Zeiss (juegos de focales de sus líneas prime) ----
+  { id: "zeiss-supreme", g: "Zeiss", name: "Supreme Primes",         focals: [15,18,21,25,29,35,40,50,65,85,100,135,150,200] },
+  { id: "zeiss-cp3",     g: "Zeiss", name: "CP.3 (Compact Primes)",  focals: [15,18,21,25,28,35,50,85,100,135] },
+  { id: "zeiss-nano",    g: "Zeiss", name: "Nano Primes",            focals: [18,24,35,50,75,100] },
   // ---- Genéricos (juegos de focales, sin marca) ----
   { id: "primes-cine",   g: "Prime (esférico)", name: "Cine primes (juego típico)", focals: [14,18,21,25,32,35,40,50,65,75,85,100,135] },
   { id: "primes-wide",   g: "Prime (esférico)", name: "Angulares 12–35",            focals: [12,14,16,18,21,25,28,35] },
